@@ -59,7 +59,14 @@ export const UsersPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((user) => (
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                  No users registered yet. Register new accounts in the mobile app to populate directory.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((user) => (
               <tr key={user.id} className="hover:bg-slate-50 transition">
                 <td className="py-3.5">
                   <div className="flex items-center gap-2.5">
@@ -134,7 +141,7 @@ export const UsersPage: React.FC = () => {
                   </button>
                 </td>
               </tr>
-            ))}
+            )))}
           </tbody>
         </table>
       </div>

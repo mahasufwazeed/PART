@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 export const ProfileScreen: React.FC = () => {
-  const { currentProfile, language, setLanguage, setTab } = useAppStore();
+  const { currentProfile, language, setLanguage, setTab, logout } = useAppStore();
   const [earnings, setEarnings] = useState<WorkerEarningsSummary | null>(null);
   const [showEarningsModal, setShowEarningsModal] = useState(false);
 
@@ -155,7 +155,7 @@ export const ProfileScreen: React.FC = () => {
       {/* Account Safety Actions */}
       <div className="space-y-2 pt-2">
         <button
-          onClick={() => alert('Logged out safely.')}
+          onClick={logout}
           className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-3 rounded-2xl flex items-center justify-center gap-2 transition"
         >
           <LogOut className="w-4 h-4" />

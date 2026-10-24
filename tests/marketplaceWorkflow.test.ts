@@ -12,25 +12,17 @@ import {
 
 describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
   beforeEach(() => {
-    // Reset mock store before each test
-    mockStore.profiles.clear();
-    mockStore.tasks.clear();
-    mockStore.locations.clear();
-    mockStore.applications.clear();
-    mockStore.assignments.clear();
-    mockStore.payments.clear();
-    mockStore.reviews.clear();
-    mockStore.disputes.clear();
-    mockStore.reports.clear();
-    mockStore.conversations.clear();
-    mockStore.messages.clear();
-    // @ts-ignore
-    mockStore.seedDefaults();
+    mockStore.reset();
   });
 
-  it('Journey A: Registration -> Post Task -> Receive Application -> Assign Worker -> Confirm Completion', async () => {
-    // 1. Requester logs in
-    const requesterProfile = authService.switchDemoUser('requester');
+  it('Journey A: Real Registration -> Post Task -> Receive Application -> Assign Worker -> Confirm Completion', async () => {
+    // 1. Real user registers as requester
+    const { profile: requesterProfile } = await authService.register(
+      'karthik@user.in',
+      'password123',
+      'Karthik Subramanian',
+      'en'
+    );
     expect(requesterProfile.full_name).toBe('Karthik Subramanian');
 
     // 2. Requester posts a parcel pickup task in Anna Nagar
@@ -56,11 +48,16 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
     expect(task.id).toBeDefined();
     expect(task.status).toBe('OPEN');
 
-    // 3. Worker switches profile and discovers task nearby
-    const workerProfile = authService.switchDemoUser('worker');
+    // 3. Real worker registers and discovers task nearby
+    const { profile: workerProfile } = await authService.register(
+      'ananya@worker.in',
+      'password123',
+      'Ananya Ramaswamy',
+      'ta'
+    );
     expect(workerProfile.full_name).toBe('Ananya Ramaswamy');
 
-    // Search tasks within 15km of Anna Nagar (Worker in nearby locality)
+    // Search tasks within 15km of Anna Nagar
     const nearby = await taskService.getNearbyTasks({
       latitude: 13.085,
       longitude: 80.2101,
@@ -160,7 +157,12 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
   });
 
   it('Journey B: Prevents applying to own task and enforces capacity', async () => {
-    const requester = authService.switchDemoUser('requester');
+    const { profile: requester } = await authService.register(
+      'requester2@test.in',
+      'password123',
+      'Karthik S',
+      'en'
+    );
     const { task } = await taskService.createTask(requester.id, {
       title: 'Move study table in Velachery',
       description: 'Need assistance with one study table moving upstairs.',
@@ -183,11 +185,36 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
   });
 
   it('Journey C: Open Conversation -> Send Message -> Receive Message', async () => {
-    const requester = authService.switchDemoUser('requester');
-    const worker = authService.switchDemoUser('worker');
-    const taskId = 'fa000000-0000-4000-8000-000000000001';
+    const { profile: requester } = await authService.register(
+      'user_c1@test.in',
+      'password123',
+      'Requester C',
+      'en'
+    );
+    const { profile: worker } = await authService.register(
+      'user_c2@test.in',
+      'password123',
+      'Worker C',
+      'ta'
+    );
 
-    const conv = await chatService.getOrCreateTaskConversation(taskId, requester.id, worker.id);
+    const { task } = await taskService.createTask(requester.id, {
+      title: 'Emergency delivery in Mylapore',
+      description: 'Pick up medical package from Mylapore tank.',
+      category_id: TASK_CATEGORIES[0].id,
+      budget_inr: 200,
+      estimated_duration_minutes: 30,
+      preferred_date: '2026-10-25',
+      required_workers_count: 1,
+      required_skills: [],
+      city: 'Chennai',
+      locality: 'Mylapore',
+      address_approximate: 'Near Kapaleeshwarar Temple',
+      latitude: 13.0368,
+      longitude: 80.2676,
+    });
+
+    const conv = await chatService.getOrCreateTaskConversation(task.id, requester.id, worker.id);
     expect(conv.id).toBeDefined();
 
     // Requester sends a message
@@ -214,19 +241,44 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
   });
 
   it('Journey D: Complete Task -> Record Payment -> Submit Review', async () => {
-    const requester = authService.switchDemoUser('requester');
-    const worker = authService.switchDemoUser('worker');
-    const taskId = 'fa000000-0000-4000-8000-000000000002'; // Velachery task
+    const { profile: requester } = await authService.register(
+      'user_d1@test.in',
+      'password123',
+      'Requester D',
+      'en'
+    );
+    const { profile: worker } = await authService.register(
+      'user_d2@test.in',
+      'password123',
+      'Worker D',
+      'ta'
+    );
+
+    const { task } = await taskService.createTask(requester.id, {
+      title: 'Move study table in Velachery',
+      description: 'Need assistance with one study table moving upstairs.',
+      category_id: TASK_CATEGORIES[1].id,
+      budget_inr: 450,
+      estimated_duration_minutes: 45,
+      preferred_date: '2026-10-25',
+      required_workers_count: 1,
+      required_skills: [],
+      city: 'Chennai',
+      locality: 'Velachery',
+      address_approximate: 'Phoenix Mall',
+      latitude: 12.9815,
+      longitude: 80.218,
+    });
 
     // Assign worker
-    await taskService.assignWorker(taskId, worker.id, undefined, requester.id);
-    await taskService.startTask(taskId, worker.id);
-    await taskService.submitCompletion(taskId, 'asgn-1', worker.id, 'Tables placed in room.');
-    await taskService.confirmCompletion(taskId, requester.id);
+    const { assignment } = await taskService.assignWorker(task.id, worker.id, undefined, requester.id);
+    await taskService.startTask(task.id, worker.id);
+    await taskService.submitCompletion(task.id, assignment.id, worker.id, 'Tables placed in room.');
+    await taskService.confirmCompletion(task.id, requester.id);
 
     // Record Sandbox payment
     const { payment } = await paymentService.recordPayment({
-      taskId,
+      taskId: task.id,
       payerId: requester.id,
       payeeId: worker.id,
       totalAmountInr: 450,
@@ -239,7 +291,7 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
 
     // Submit reciprocal review
     const { review } = await reviewService.submitReview({
-      taskId,
+      taskId: task.id,
       reviewerId: worker.id,
       revieweeId: requester.id,
       roleReviewed: 'requester',
@@ -253,14 +305,39 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
   });
 
   it('Journey E: Report Task -> Admin Reviews Report -> Admin Takes Action', async () => {
-    const reporter = authService.switchDemoUser('worker');
-    const admin = authService.switchDemoUser('admin');
-    const taskId = 'fa000000-0000-4000-8000-000000000003';
+    const { profile: reporter } = await authService.register(
+      'reporter@test.in',
+      'password123',
+      'Concerned Worker',
+      'en'
+    );
+    const { profile: admin } = await authService.register(
+      'admin@part.in',
+      'password123',
+      'Platform Admin Arun',
+      'en'
+    );
 
-    // 1. User reports a task for policy violation
+    const { task } = await taskService.createTask(reporter.id, {
+      title: 'Transport hazardous acid bottles',
+      description: 'Move unsealed acid canisters across town without safety equipment.',
+      category_id: TASK_CATEGORIES[0].id,
+      budget_inr: 500,
+      estimated_duration_minutes: 60,
+      preferred_date: '2026-10-25',
+      required_workers_count: 1,
+      required_skills: [],
+      city: 'Chennai',
+      locality: 'OMR - Thoraipakkam',
+      address_approximate: 'Near ASV Suntech Park',
+      latitude: 12.9368,
+      longitude: 80.2289,
+    });
+
+    // 1. User reports the prohibited task
     const { report } = await disputeService.submitReport({
       reporterId: reporter.id,
-      reportedTaskId: taskId,
+      reportedTaskId: task.id,
       reason: 'Safety policy violation: hazardous materials',
       details: 'Requester asked to transport industrial battery acid without protective gear.',
     });
@@ -275,12 +352,12 @@ describe('End-to-End Hyperlocal Marketplace Workflow (Chennai Launch)', () => {
     expect(foundReport).toBeDefined();
 
     // 3. Admin takes down the prohibited task
-    const task = mockStore.tasks.get(taskId)!;
-    task.status = 'CANCELLED';
+    const taskRecord = mockStore.tasks.get(task.id)!;
+    taskRecord.status = 'CANCELLED';
     foundReport!.status = 'RESOLVED';
     foundReport!.resolved_by = admin.id;
 
-    expect(task.status).toBe('CANCELLED');
+    expect(taskRecord.status).toBe('CANCELLED');
     expect(foundReport!.status).toBe('RESOLVED');
   });
 });

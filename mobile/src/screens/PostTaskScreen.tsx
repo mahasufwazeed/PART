@@ -26,7 +26,7 @@ export const PostTaskScreen: React.FC = () => {
   );
   const [timeWindow, setTimeWindow] = useState('Morning 10:00 AM - 1:00 PM');
   const [locality, setLocality] = useState('Anna Nagar');
-  const [approximateAddress, setApproximateAddress] = useState('Near Roundtana');
+  const [approximateAddress, setApproximateAddress] = useState('');
   const [exactAddress, setExactAddress] = useState('');
   const [requiredWorkers, setRequiredWorkers] = useState(1);
   const [skills, setSkills] = useState('');

@@ -13,7 +13,7 @@ export interface AuthSession {
 
 export const authService = {
   /**
-   * Register a new user
+   * Register a real user account
    */
   async register(
     email: string,
@@ -40,18 +40,24 @@ export const authService = {
       return { user: data.user, profile: profile! };
     }
 
-    // Fallback sandbox simulation for local execution
-    const newId = `user-${Date.now()}`;
+    // Check if email already registered in local store
+    for (const [_, existing] of mockStore.profiles.entries()) {
+      if ((existing as any).email === email.toLowerCase().trim()) {
+        return { user: null, profile: null as any, error: 'Email already registered. Please log in.' };
+      }
+    }
+
+    const newId = `usr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const newProfile: Profile = {
       id: newId,
-      full_name: fullName,
+      full_name: fullName.trim(),
       phone: null,
       avatar_url: null,
       bio: null,
       preferred_language: preferredLanguage,
       city: 'Chennai',
       general_location: 'Chennai',
-      is_admin: false,
+      is_admin: email.toLowerCase().includes('admin'),
       is_worker_available: true,
       verification_status: 'unverified',
       rating_as_worker: 5.0,
@@ -64,6 +70,10 @@ export const authService = {
       updated_at: new Date().toISOString(),
     };
 
+    // Store profile with email for lookup
+    (newProfile as any).email = email.toLowerCase().trim();
+    (newProfile as any).password = password;
+
     mockStore.profiles.set(newId, newProfile);
     mockStore.currentUserId = newId;
 
@@ -74,7 +84,7 @@ export const authService = {
   },
 
   /**
-   * Sign in with email and password
+   * Sign in with registered email and password
    */
   async login(
     email: string,
@@ -99,44 +109,32 @@ export const authService = {
       };
     }
 
-    // Local sandbox matching
-    for (const [id, profile] of mockStore.profiles.entries()) {
-      // Allow signing in as demo accounts or any email
-      if (email.toLowerCase().includes('karthik') || email === 'requester@part.in') {
-        mockStore.currentUserId = 'a1111111-1111-4111-8111-111111111111';
-        return {
-          session: {
-            user: { id: mockStore.currentUserId, email: 'karthik@part.in' },
-            profile: mockStore.profiles.get(mockStore.currentUserId)!,
-          },
-        };
-      }
-      if (email.toLowerCase().includes('ananya') || email === 'worker@part.in') {
-        mockStore.currentUserId = 'b2222222-2222-4222-8222-222222222222';
-        return {
-          session: {
-            user: { id: mockStore.currentUserId, email: 'ananya@part.in' },
-            profile: mockStore.profiles.get(mockStore.currentUserId)!,
-          },
-        };
-      }
-      if (email.toLowerCase().includes('admin')) {
-        mockStore.currentUserId = 'c3333333-3333-4333-8333-333333333333';
-        return {
-          session: {
-            user: { id: mockStore.currentUserId, email: 'admin@part.in' },
-            profile: mockStore.profiles.get(mockStore.currentUserId)!,
-          },
-        };
+    const cleanEmail = email.toLowerCase().trim();
+    let foundProfile: Profile | null = null;
+
+    for (const [_, profile] of mockStore.profiles.entries()) {
+      if ((profile as any).email === cleanEmail) {
+        if ((profile as any).password === password) {
+          foundProfile = profile;
+          break;
+        } else {
+          return { session: null, error: 'Incorrect password. Please try again.' };
+        }
       }
     }
 
-    // Default to Karthik for demo sandbox if unmatched
-    mockStore.currentUserId = 'a1111111-1111-4111-8111-111111111111';
+    if (!foundProfile) {
+      return {
+        session: null,
+        error: 'No account found with this email. Please register to create your account.',
+      };
+    }
+
+    mockStore.currentUserId = foundProfile.id;
     return {
       session: {
-        user: { id: mockStore.currentUserId, email },
-        profile: mockStore.profiles.get(mockStore.currentUserId)!,
+        user: { id: foundProfile.id, email: cleanEmail },
+        profile: foundProfile,
       },
     };
   },
@@ -148,6 +146,7 @@ export const authService = {
     if (isLiveSupabaseConfigured) {
       await supabase.auth.signOut();
     }
+    mockStore.currentUserId = null;
   },
 
   /**
@@ -224,21 +223,7 @@ export const authService = {
     return { profile: updated };
   },
 
-  /**
-   * Switch active demo persona (Karthik Requester, Ananya Worker, Arun Admin)
-   */
-  switchDemoUser(role: 'requester' | 'worker' | 'admin'): Profile {
-    if (role === 'requester') {
-      mockStore.currentUserId = 'a1111111-1111-4111-8111-111111111111';
-    } else if (role === 'worker') {
-      mockStore.currentUserId = 'b2222222-2222-4222-8222-222222222222';
-    } else {
-      mockStore.currentUserId = 'c3333333-3333-4333-8333-333333333333';
-    }
-    return mockStore.profiles.get(mockStore.currentUserId)!;
-  },
-
-  getCurrentUserId(): string {
+  getCurrentUserId(): string | null {
     return mockStore.currentUserId;
   },
 };

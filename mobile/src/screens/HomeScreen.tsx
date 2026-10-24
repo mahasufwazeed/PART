@@ -35,13 +35,14 @@ export const HomeScreen: React.FC = () => {
     setTasks(nearby);
 
     // Fetch active user tasks
-    if (currentProfile.id.includes('a1111')) {
-      const posted = await taskService.getMyPostedTasks(currentProfile.id);
-      setActiveTasks(posted.filter((t) => ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)));
-    } else {
-      const assigned = await taskService.getMyAssignedTasks(currentProfile.id);
-      setActiveTasks(assigned.filter((t) => ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)));
-    }
+    const posted = await taskService.getMyPostedTasks(currentProfile.id);
+    const assigned = await taskService.getMyAssignedTasks(currentProfile.id);
+    const allUserActive = [...posted, ...assigned].filter(
+      (t, idx, arr) =>
+        arr.findIndex((item) => item.id === t.id) === idx &&
+        ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)
+    );
+    setActiveTasks(allUserActive);
 
     setIsLoading(false);
   };

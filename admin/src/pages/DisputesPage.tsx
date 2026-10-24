@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { mockStore, disputeService, Dispute, DisputeStatus } from '@part/shared';
+import { mockStore, disputeService, authService, Dispute, DisputeStatus } from '@part/shared';
 import { AlertTriangle, CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
 
 export const DisputesPage: React.FC = () => {
@@ -11,9 +11,10 @@ export const DisputesPage: React.FC = () => {
 
   const handleResolve = async (disputeId: string, resolution: DisputeStatus) => {
     const notes = resolutionNotes || 'Resolved after admin inspection of task evidence.';
+    const adminId = authService.getCurrentUser()?.id || 'admin-system';
     await disputeService.resolveDispute(
       disputeId,
-      'c3333333-3333-4333-8333-333333333333', // Arun Admin
+      adminId,
       resolution,
       notes
     );

@@ -79,11 +79,11 @@ export const AdminSidebar: React.FC<Props> = ({ currentTab, onSelectTab }) => {
       {/* Admin Profile Footer */}
       <div className="p-3 bg-slate-800/80 rounded-2xl border border-slate-700/60 flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-full bg-accent/20 text-accent font-black text-xs flex items-center justify-center">
-          AK
+          PA
         </div>
         <div className="overflow-hidden">
           <h4 className="text-xs font-bold text-slate-200 truncate">
-            Arun Kumar
+            Platform Admin
           </h4>
           <span className="text-[10px] text-accent flex items-center gap-1 font-medium">
             <ShieldCheck className="w-2.5 h-2.5" />

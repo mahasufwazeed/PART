@@ -76,7 +76,14 @@ export const TasksPage: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filtered.map((task) => {
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-8 text-center text-slate-400 italic">
+                  No tasks match the selected filter criteria.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((task) => {
               const loc = mockStore.locations.get(task.id);
               return (
                 <tr key={task.id} className="hover:bg-slate-50 transition">
@@ -121,7 +128,7 @@ export const TasksPage: React.FC = () => {
                   </td>
                 </tr>
               );
-            })}
+            }))}
           </tbody>
         </table>
       </div>

@@ -7,7 +7,7 @@ export type AppTab = 'home' | 'explore' | 'post' | 'activity' | 'profile';
 interface AppState {
   currentTab: AppTab;
   language: AppLanguage;
-  currentProfile: Profile;
+  currentProfile: Profile | null;
   userLocation: {
     locality: string;
     latitude: number;
@@ -24,7 +24,7 @@ interface AppState {
   // Actions
   setTab: (tab: AppTab) => void;
   setLanguage: (lang: AppLanguage) => void;
-  switchPersona: (role: 'requester' | 'worker' | 'admin') => void;
+  setCurrentProfile: (profile: Profile | null) => void;
   setUserLocation: (loc: { locality: string; latitude: number; longitude: number }) => void;
   openTaskDetails: (taskId: string) => void;
   closeTaskDetails: () => void;
@@ -38,12 +38,13 @@ interface AppState {
   closeDispute: () => void;
   toggleTheme: () => void;
   refreshProfile: () => void;
+  logout: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   currentTab: 'home',
   language: 'en',
-  currentProfile: mockStore.profiles.get(mockStore.currentUserId)!,
+  currentProfile: null, // Starts null until user registers or logs in
   userLocation: {
     locality: 'Velachery, Chennai',
     latitude: 12.9815,
@@ -59,20 +60,20 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setTab: (tab) => set({ currentTab: tab }),
   setLanguage: (lang) => set({ language: lang }),
-
-  switchPersona: (role) => {
-    const profile = authService.switchDemoUser(role);
-    set({
-      currentProfile: profile,
-      language: profile.preferred_language,
-      // Default location per persona for realistic local discovery
-      userLocation:
-        role === 'worker'
-          ? { locality: 'Velachery, Chennai', latitude: 12.9815, longitude: 80.218 }
-          : role === 'requester'
-          ? { locality: 'Anna Nagar, Chennai', latitude: 13.085, longitude: 80.2101 }
-          : { locality: 'T. Nagar, Chennai', latitude: 13.0418, longitude: 80.2341 },
-    });
+  setCurrentProfile: (profile) => {
+    if (profile) {
+      set({
+        currentProfile: profile,
+        language: profile.preferred_language,
+        userLocation: {
+          locality: profile.general_location || 'Velachery, Chennai',
+          latitude: 12.9815,
+          longitude: 80.218,
+        },
+      });
+    } else {
+      set({ currentProfile: null });
+    }
   },
 
   setUserLocation: (loc) => set({ userLocation: loc }),
@@ -89,7 +90,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   toggleTheme: () =>
     set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
   refreshProfile: () => {
-    const p = mockStore.profiles.get(get().currentProfile.id);
-    if (p) set({ currentProfile: { ...p } });
+    const cp = get().currentProfile;
+    if (cp) {
+      const p = mockStore.profiles.get(cp.id);
+      if (p) set({ currentProfile: { ...p } });
+    }
+  },
+  logout: () => {
+    authService.logout();
+    set({ currentProfile: null, currentTab: 'home' });
   },
 }));

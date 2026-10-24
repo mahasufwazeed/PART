@@ -42,9 +42,8 @@ export const OverviewPage: React.FC<Props> = ({ onNavigate }) => {
         <MetricCard
           title="Total Users"
           value={totalUsers}
-          subtitle="Chennai Verified"
+          subtitle="Chennai Registered"
           icon={Users}
-          badge="+12% wk"
           variant="primary"
         />
         <MetricCard
@@ -59,7 +58,6 @@ export const OverviewPage: React.FC<Props> = ({ onNavigate }) => {
           value={completedTasks}
           subtitle="Genuinely settled"
           icon={CheckCircle2}
-          badge="100% verified"
           variant="accent"
         />
         <MetricCard
@@ -81,7 +79,6 @@ export const OverviewPage: React.FC<Props> = ({ onNavigate }) => {
           value={`₹${totalPlatformFeesInr.toLocaleString('en-IN')}`}
           subtitle="10% Net Platform Rev"
           icon={TrendingUp}
-          badge="10% model"
           variant="accent"
         />
       </div>
@@ -120,7 +117,14 @@ export const OverviewPage: React.FC<Props> = ({ onNavigate }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {tasks.map((task) => {
+                {tasks.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400 italic">
+                      No marketplace tasks posted yet. Create tasks in the mobile app to populate live stream.
+                    </td>
+                  </tr>
+                ) : (
+                  tasks.map((task) => {
                   const loc = mockStore.locations.get(task.id);
                   return (
                     <tr key={task.id} className="hover:bg-slate-50/80 transition">
@@ -149,7 +153,7 @@ export const OverviewPage: React.FC<Props> = ({ onNavigate }) => {
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>

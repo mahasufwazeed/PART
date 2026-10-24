@@ -23,8 +23,8 @@ export const ReviewModal: React.FC = () => {
 
   const isRequester = currentProfile.id === task.requester_id;
   const revieweeId = isRequester
-    ? 'b2222222-2222-4222-8222-222222222222' // Reviewing worker
-    : task.requester_id; // Reviewing requester
+    ? task.assigned_worker_id || ''
+    : task.requester_id;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

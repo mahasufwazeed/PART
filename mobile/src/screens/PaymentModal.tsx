@@ -33,7 +33,7 @@ export const PaymentModal: React.FC = () => {
     await paymentService.recordPayment({
       taskId: task.id,
       payerId: task.requester_id,
-      payeeId: 'b2222222-2222-4222-8222-222222222222', // Worker
+      payeeId: task.assigned_worker_id || '',
       totalAmountInr: task.budget_inr,
       paymentMethod: method,
     });
