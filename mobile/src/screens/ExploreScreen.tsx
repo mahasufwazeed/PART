@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { taskService, Task, TASK_CATEGORIES, CHENNAI_LOCALITIES } from '@part/shared';
 import { TaskCard } from '../components/TaskCard';
-import { MapViewSimulation } from '../components/MapViewSimulation';
+import { RealtimeMap } from '../components/RealtimeMap';
 import { SearchBar } from '../components/SearchBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
@@ -197,13 +197,11 @@ export const ExploreScreen: React.FC = () => {
       <div className="px-4 pt-3">
         {viewMode === 'map' ? (
           <div className="space-y-3">
-            <div className="rounded-3xl overflow-hidden border border-neutral-200/90 shadow-card">
-              <MapViewSimulation
-                tasks={tasks}
-                centerLat={userLocation.latitude}
-                centerLng={userLocation.longitude}
-              />
-            </div>
+            <RealtimeMap
+              tasks={tasks}
+              centerLat={userLocation.latitude}
+              centerLng={userLocation.longitude}
+            />
             <p className="text-xs text-neutral-500 text-center font-medium">
               Interactive PostGIS radius map showing verified tasks across Chennai.
             </p>

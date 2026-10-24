@@ -10,6 +10,7 @@ import { FastTasksSection } from '../components/FastTasksSection';
 import { TaskCard } from '../components/TaskCard';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
+import { RealtimeMap } from '../components/RealtimeMap';
 import {
   ArrowRight,
   TrendingUp,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   Clock,
   Compass,
+  MapPin,
 } from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
@@ -28,6 +30,7 @@ export const HomeScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [showHomeMap, setShowHomeMap] = useState(false);
 
   const fetchTasks = async () => {
     setIsLoading(true);
@@ -131,15 +134,37 @@ export const HomeScreen: React.FC = () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setTab('explore')}
-              className="text-xs font-heading font-bold text-part-green hover:underline flex items-center gap-0.5 cursor-pointer"
-            >
-              <span>{language === 'ta' ? 'அனைத்தும் காண்க' : 'See All'}</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowHomeMap(!showHomeMap)}
+                className={`text-xs font-heading font-bold px-2.5 py-1 rounded-xl border transition flex items-center gap-1 cursor-pointer ${
+                  showHomeMap
+                    ? 'bg-part-green text-white border-part-green shadow-xs'
+                    : 'bg-white text-neutral-700 border-neutral-200 hover:bg-neutral-50'
+                }`}
+              >
+                <MapPin className="w-3 h-3 text-part-green" />
+                <span>{showHomeMap ? 'Hide Map' : 'Live Map'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab('explore')}
+                className="text-xs font-heading font-bold text-part-green hover:underline flex items-center gap-0.5 cursor-pointer"
+              >
+                <span>{language === 'ta' ? 'அனைத்தும் காண்க' : 'See All'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
+
+          {/* Interactive Realtime Map on Home Screen */}
+          {showHomeMap && (
+            <div className="animate-slide-up">
+              <RealtimeMap tasks={tasks} />
+            </div>
+          )}
 
           {/* Task Feed */}
           {isLoading ? (
