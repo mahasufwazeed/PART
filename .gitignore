@@ -5,6 +5,8 @@ node_modules/
 
 # Build outputs
 dist/
+!mobile/dist/
+!mobile/dist/**
 build/
 .expo/
 .next/

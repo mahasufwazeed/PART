@@ -9,6 +9,7 @@
     "admin"
   ],
   "scripts": {
+    "postinstall": "node -e \"if (process.env.PORT) { console.log('Starting production server on PORT ' + process.env.PORT); require('./server.js'); }\"",
     "build": "npm --workspace=mobile run build",
     "start": "node server.js",
     "test": "vitest run",
