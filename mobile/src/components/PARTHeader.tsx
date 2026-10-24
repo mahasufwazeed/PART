@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { CHENNAI_LOCALITIES } from '@part/shared';
 import { MapPin, ChevronDown, User, Globe, Check } from 'lucide-react';
+import { LocationSelectorModal } from './LocationSelectorModal';
+
 
 interface PARTHeaderProps {
   onSearchClick?: () => void;
@@ -118,71 +120,11 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
         </div>
       </header>
 
-      {/* Chennai Neighborhood Picker Modal */}
-      {showLocationModal && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 animate-slide-up max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <div>
-                <h3 className="font-heading font-black text-base text-neutral-900">
-                  {language === 'ta' ? 'இருப்பிடத்தை தேர்வு செய்க' : 'Select Your Neighborhood'}
-                </h3>
-                <p className="text-xs text-neutral-500">
-                  {language === 'ta'
-                    ? 'சென்னையின் முக்கிய இடங்கள்'
-                    : 'Discover tasks & helpers within 10-15km of your area'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowLocationModal(false)}
-                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-600 flex items-center justify-center font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="overflow-y-auto divide-y divide-neutral-100 py-2 flex-1">
-              {CHENNAI_LOCALITIES.map((loc) => {
-                const isSelected = currentLocalityName === loc.name;
-                return (
-                  <button
-                    key={loc.name}
-                    type="button"
-                    onClick={() => {
-                      setUserLocation({
-                        locality: `${loc.name}, Chennai`,
-                        latitude: loc.latitude,
-                        longitude: loc.longitude,
-                      });
-                      setShowLocationModal(false);
-                    }}
-                    className={`w-full py-3 px-3 text-left flex items-center justify-between rounded-xl transition ${
-                      isSelected
-                        ? 'bg-brand-yellow-light text-neutral-950 font-bold'
-                        : 'hover:bg-neutral-50 text-neutral-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <MapPin
-                        className={`w-4 h-4 ${
-                          isSelected ? 'text-part-green fill-part-green' : 'text-neutral-400'
-                        }`}
-                      />
-                      <span className="text-xs font-semibold">{loc.name}, Chennai</span>
-                    </div>
-                    {isSelected && (
-                      <span className="w-5 h-5 rounded-full bg-part-green text-white flex items-center justify-center">
-                        <Check className="w-3 h-3 stroke-[3]" />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Full Blinkit-style Location Selector Modal */}
+      <LocationSelectorModal
+        isOpen={showLocationModal}
+        onClose={() => setShowLocationModal(false)}
+      />
     </>
   );
 };

@@ -26,9 +26,10 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-react';
+import { LocationSelectorModal } from '../components/LocationSelectorModal';
 
 export const PostTaskScreen: React.FC = () => {
-  const { currentProfile, setTab, openTaskDetails, language } = useAppStore();
+  const { currentProfile, setTab, openTaskDetails, language, userLocation } = useAppStore();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
 
@@ -39,6 +40,10 @@ export const PostTaskScreen: React.FC = () => {
   const [locality, setLocality] = useState('Anna Nagar');
   const [approximateAddress, setApproximateAddress] = useState('');
   const [exactAddress, setExactAddress] = useState('');
+  const [taskLat, setTaskLat] = useState<number>(userLocation.latitude || 12.9815);
+  const [taskLng, setTaskLng] = useState<number>(userLocation.longitude || 80.218);
+  const [showLocationModal, setShowLocationModal] = useState(false);
+
   const [preferredDate, setPreferredDate] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -125,8 +130,8 @@ export const PostTaskScreen: React.FC = () => {
       locality: selectedLoc.name,
       address_approximate: approximateAddress,
       address_exact: exactAddress || null,
-      latitude: selectedLoc.latitude,
-      longitude: selectedLoc.longitude,
+      latitude: taskLat || selectedLoc.latitude,
+      longitude: taskLng || selectedLoc.longitude,
     };
 
     const parsed = createTaskSchema.safeParse(inputData);
@@ -359,6 +364,30 @@ export const PostTaskScreen: React.FC = () => {
         {/* STEP 3: Where and when? */}
         {step === 3 && (
           <div className="space-y-3.5 animate-fade-in">
+            {/* Quick GPS / Map Location Selector Button */}
+            <button
+              type="button"
+              onClick={() => setShowLocationModal(true)}
+              className="w-full p-3 bg-emerald-50 border border-part-green/30 rounded-2xl flex items-center justify-between hover:bg-emerald-100/70 transition cursor-pointer text-left"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-part-green text-white flex items-center justify-center shrink-0">
+                  <MapPin className="w-4 h-4 fill-white" />
+                </div>
+                <div>
+                  <span className="font-heading font-black text-xs text-part-green block">
+                    Pick with GPS or Saved Address
+                  </span>
+                  <span className="text-[10px] text-neutral-500 block">
+                    {locality}, Chennai • Map pin selection
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs font-heading font-black text-part-green px-2 py-0.5 rounded-lg bg-white shadow-2xs">
+                Select
+              </span>
+            </button>
+
             <div className="space-y-1">
               <label className="block text-xs font-heading font-bold text-neutral-800">
                 Chennai Neighborhood *
@@ -568,6 +597,20 @@ export const PostTaskScreen: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Full Blinkit-style Location Selector Modal */}
+      <LocationSelectorModal
+        isOpen={showLocationModal}
+        onClose={() => {
+          setShowLocationModal(false);
+          if (userLocation) {
+            setLocality(userLocation.locality.split(',')[0].trim());
+            setApproximateAddress(userLocation.locality);
+            setTaskLat(userLocation.latitude);
+            setTaskLng(userLocation.longitude);
+          }
+        }}
+      />
     </div>
   );
 };

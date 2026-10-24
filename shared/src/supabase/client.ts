@@ -34,9 +34,10 @@ const supabaseAnonKey =
   'sb_publishable_ixrkqzZpp3txZ9ZrwBY63A_O4UNxG4f';
 
 // Vitest unit/integration tests run in memory without requiring remote DB migration
-const isTestEnv =
+export const isTestEnv =
   typeof process !== 'undefined' &&
   (process.env?.NODE_ENV === 'test' || Boolean(process.env?.VITEST));
+
 
 export const isLiveSupabaseConfigured =
   !isTestEnv &&

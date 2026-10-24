@@ -8,6 +8,8 @@ import {
   TASK_CATEGORIES,
 } from '@part/shared';
 import { StatusBadge } from '../components/StatusBadge';
+import { LiveTrackingSheet } from '../components/LiveTrackingSheet';
+
 import {
   X,
   MapPin,
@@ -263,6 +265,25 @@ export const TaskDetailsModal: React.FC = () => {
               <span>Open Task Chat</span>
             </button>
           )}
+
+          {/* Live Worker Tracking & Route Navigation */}
+          {(task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') &&
+            (isRequester || isAssignedWorker) &&
+            task.location && (
+              <LiveTrackingSheet
+                taskId={task.id}
+                isWorker={isAssignedWorker}
+                taskStatus={task.status}
+                taskLocation={{
+                  latitude: task.location.latitude,
+                  longitude: task.location.longitude,
+                  locality: task.location.locality,
+                  address_exact: task.location.address_exact,
+                }}
+                taskTitle={task.title}
+              />
+            )}
+
 
           {/* Worker Actions in Progress */}
           {task.status === 'ASSIGNED' && isAssignedWorker && (

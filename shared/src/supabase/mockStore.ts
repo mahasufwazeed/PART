@@ -26,6 +26,8 @@ export class LocalMarketplaceStore {
   disputes: Map<string, Dispute> = new Map();
   reports: Map<string, Report> = new Map();
   notifications: Map<string, Notification> = new Map();
+  savedAddresses: Map<string, any> = new Map();
+  workerLocations: Map<string, any> = new Map();
 
   currentUserId: string | null = null;
 
@@ -49,6 +51,8 @@ export class LocalMarketplaceStore {
     this.disputes.clear();
     this.reports.clear();
     this.notifications.clear();
+    this.savedAddresses.clear();
+    this.workerLocations.clear();
     this.currentUserId = null;
   }
 }

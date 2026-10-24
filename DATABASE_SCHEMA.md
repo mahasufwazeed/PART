@@ -293,3 +293,65 @@ Acquires an exclusive row lock on `tasks` via `SELECT ... FOR UPDATE`:
 4. Creates `task_assignments` record
 5. Automatically increments `assigned_workers_count` and updates status to `ASSIGNED`
 6. Creates or attaches the conversation record for participants.
+
+---
+
+## 5. PostGIS Location Tracking & Geospatial System (Migration 0003)
+
+### 24. `saved_addresses`
+Stores user bookmarked locations (Home, Work, Other) with PostGIS Point geometries.
+* `id` (UUID, PK, DEFAULT `gen_random_uuid()`)
+* `user_id` (UUID, FK -> `profiles.id` ON DELETE CASCADE)
+* `label` (TEXT, CHECK: `'Home' | 'Work' | 'Other'`)
+* `title` (TEXT, NOT NULL)
+* `address_line` (TEXT, NOT NULL)
+* `locality` (TEXT, NOT NULL)
+* `latitude` (DOUBLE PRECISION, NOT NULL)
+* `longitude` (DOUBLE PRECISION, NOT NULL)
+* `location` (`GEOMETRY(Point, 4326)`, GENERATED ALWAYS AS `ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)` STORED)
+* `is_default` (BOOLEAN, DEFAULT FALSE)
+* `created_at` (TIMESTAMPTZ, DEFAULT NOW())
+
+**Spatial Index**: `CREATE INDEX idx_saved_addresses_location ON public.saved_addresses USING GIST(location);`
+
+**RLS Policy**:
+```sql
+CREATE POLICY "Users can view and manage their own saved addresses"
+  ON public.saved_addresses FOR ALL TO authenticated
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+```
+
+### 25. `task_worker_locations`
+Stores real-time worker GPS coordinates for accepted and in-progress tasks.
+* `task_id` (UUID, FK -> `tasks.id` ON DELETE CASCADE)
+* `worker_id` (UUID, FK -> `profiles.id` ON DELETE CASCADE)
+* `latitude` (DOUBLE PRECISION, NOT NULL)
+* `longitude` (DOUBLE PRECISION, NOT NULL)
+* `location` (`GEOMETRY(Point, 4326)`, GENERATED ALWAYS AS `ST_SetSRID(ST_MakePoint(longitude, latitude), 4326)` STORED)
+* `heading` (DOUBLE PRECISION)
+* `speed` (DOUBLE PRECISION)
+* `accuracy` (DOUBLE PRECISION)
+* `updated_at` (TIMESTAMPTZ, DEFAULT NOW())
+* `PRIMARY KEY (task_id, worker_id)`
+
+**Realtime Replication**:
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.task_worker_locations;
+```
+
+**Security & Privacy RLS**:
+* **Read (SELECT)**: Scoped strictly to task participants (`requester_id` OR `assigned_worker_id`) and ONLY while task is in active state (`ASSIGNED` or `IN_PROGRESS`). Automatically terminates access upon task completion or cancellation.
+* **Write (INSERT/UPDATE)**: Only the assigned worker (`worker_id = auth.uid()`) can publish coordinates for an active gig.
+
+### PostGIS Radial Discovery RPC: `get_nearby_tasks_within_radius`
+Filters tasks within precise spherical radii (1km, 3km, 5km, 10km) using PostGIS geography:
+```sql
+SELECT t.id, t.title, t.budget_inr, tl.locality,
+  ROUND((ST_Distance(tl.location::geography, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography) / 1000.0)::numeric, 2) AS distance_km
+FROM public.tasks t
+JOIN public.task_locations tl ON tl.task_id = t.id
+WHERE t.status = 'OPEN'
+  AND ST_DWithin(tl.location::geography, ST_SetSRID(ST_MakePoint(p_lng, p_lat), 4326)::geography, p_radius_km * 1000.0)
+ORDER BY distance_km ASC;
+```
+

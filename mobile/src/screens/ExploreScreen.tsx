@@ -1,28 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { taskService, Task, TASK_CATEGORIES, CHENNAI_LOCALITIES } from '@part/shared';
+import {
+  taskService,
+  locationService,
+  Task,
+  TASK_CATEGORIES,
+  DISTANCE_FILTER_OPTIONS_KM,
+} from '@part/shared';
 import { TaskCard } from '../components/TaskCard';
 import { RealtimeMap } from '../components/RealtimeMap';
+import { MapLibreView } from '../components/MapLibreView';
+import { LocationSelectorModal } from '../components/LocationSelectorModal';
 import { SearchBar } from '../components/SearchBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
 import { EmptyState } from '../components/EmptyState';
 import {
   List,
   Map as MapIcon,
-  SlidersHorizontal,
   MapPin,
   ChevronDown,
-  Zap,
-  Sparkles,
-  Calendar,
-  Flame,
-  ArrowUpDown,
+  Layers,
+  Compass,
 } from 'lucide-react';
 
 export const ExploreScreen: React.FC = () => {
-  const { userLocation, setUserLocation, language, setTab } = useAppStore();
+  const { userLocation, language, openTaskDetails } = useAppStore();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [mapEngine, setMapEngine] = useState<'maplibre' | 'leaflet'>('maplibre');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
+  const [selectedRadiusKm, setSelectedRadiusKm] = useState<number>(5);
   const [activeFilter, setActiveFilter] = useState<
     'nearby' | 'highest_pay' | 'newest' | 'quick_tasks' | 'today'
   >('nearby');
@@ -33,15 +39,31 @@ export const ExploreScreen: React.FC = () => {
 
   const fetchTasks = async () => {
     setIsLoading(true);
-    const results = await taskService.getNearbyTasks({
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      radiusKm: 25,
-      categoryId: selectedCategory,
-      searchQuery,
-    });
+
+    // Call PostGIS / Haversine locationService
+    const results = await locationService.getNearbyTasks(
+      userLocation.latitude,
+      userLocation.longitude,
+      selectedRadiusKm
+    );
 
     let filtered = [...results];
+
+    // Filter by category
+    if (selectedCategory) {
+      filtered = filtered.filter((t) => t.category_id === selectedCategory);
+    }
+
+    // Filter by text search
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q) ||
+          t.location?.locality.toLowerCase().includes(q)
+      );
+    }
 
     // Quick Tasks filter (< 60 min)
     if (activeFilter === 'quick_tasks') {
@@ -71,7 +93,7 @@ export const ExploreScreen: React.FC = () => {
 
   useEffect(() => {
     fetchTasks();
-  }, [userLocation, selectedCategory, activeFilter, searchQuery]);
+  }, [userLocation, selectedCategory, selectedRadiusKm, activeFilter, searchQuery]);
 
   const currentLocalityName = userLocation.locality.split(',')[0].trim();
 
@@ -79,28 +101,33 @@ export const ExploreScreen: React.FC = () => {
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
       {/* Top Sticky Header */}
       <div className="sticky top-0 z-20 bg-white border-b border-neutral-200/90 shadow-xs px-4 pt-3 pb-2 space-y-2.5">
-        {/* Row 1: Location & List/Map Toggle */}
+        {/* Row 1: Location Bar & View Switcher */}
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setShowLocationPicker(true)}
-            className="flex items-center gap-1.5 text-left group"
+            className="flex items-center gap-1.5 text-left group cursor-pointer"
           >
-            <div className="w-5 h-5 rounded-full bg-part-green-mint text-part-green flex items-center justify-center">
-              <MapPin className="w-3 h-3 text-part-green" />
+            <div className="w-6 h-6 rounded-full bg-part-green-mint text-part-green flex items-center justify-center">
+              <MapPin className="w-3.5 h-3.5 text-part-green" />
             </div>
-            <span className="font-heading font-black text-xs text-neutral-900 group-hover:underline">
-              {currentLocalityName}, Chennai
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
+            <div className="min-w-0">
+              <span className="font-heading font-black text-xs text-neutral-900 group-hover:underline block truncate">
+                {currentLocalityName}, Chennai
+              </span>
+              <span className="text-[10px] text-neutral-400 block -mt-0.5">
+                Within {selectedRadiusKm} km • Tap to change
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-neutral-500 shrink-0" />
           </button>
 
           {/* List vs Map Switcher */}
-          <div className="flex bg-neutral-100 p-0.5 rounded-xl border border-neutral-200 text-xs font-bold">
+          <div className="flex bg-neutral-100 p-0.5 rounded-xl border border-neutral-200 text-xs font-bold shrink-0">
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition cursor-pointer ${
                 viewMode === 'list'
                   ? 'bg-part-green text-white shadow-xs font-heading font-bold'
                   : 'text-neutral-600 hover:text-neutral-900'
@@ -112,7 +139,7 @@ export const ExploreScreen: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode('map')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg transition cursor-pointer ${
                 viewMode === 'map'
                   ? 'bg-part-green text-white shadow-xs font-heading font-bold'
                   : 'text-neutral-600 hover:text-neutral-900'
@@ -131,7 +158,29 @@ export const ExploreScreen: React.FC = () => {
           className="w-full"
         />
 
-        {/* Row 3: Category Chips */}
+        {/* Row 3: Distance Radius Filter Bar (1, 3, 5, 10 km) */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none -mx-4 px-4 text-xs">
+          <span className="text-[10px] font-heading font-black text-neutral-400 uppercase tracking-wider shrink-0 flex items-center gap-1">
+            <Compass className="w-3 h-3 text-part-green" />
+            <span>Radius:</span>
+          </span>
+          {DISTANCE_FILTER_OPTIONS_KM.map((km) => (
+            <button
+              key={km}
+              type="button"
+              onClick={() => setSelectedRadiusKm(km)}
+              className={`px-3 py-1 rounded-full text-xs font-heading font-bold whitespace-nowrap transition cursor-pointer ${
+                selectedRadiusKm === km
+                  ? 'bg-part-green text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+              }`}
+            >
+              {km} km
+            </button>
+          ))}
+        </div>
+
+        {/* Row 4: Category Chips */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4">
           <button
             type="button"
@@ -165,10 +214,10 @@ export const ExploreScreen: React.FC = () => {
           })}
         </div>
 
-        {/* Row 4: Sticky Filter Row */}
+        {/* Row 5: Sort Filter Row */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 text-xs">
           {[
-            { key: 'nearby', label: '📍 Nearby' },
+            { key: 'nearby', label: '📍 Nearest' },
             { key: 'highest_pay', label: '💰 Highest Pay' },
             { key: 'newest', label: '⚡ Newest' },
             { key: 'quick_tasks', label: '⏱️ Quick (< 1hr)' },
@@ -197,13 +246,59 @@ export const ExploreScreen: React.FC = () => {
       <div className="px-4 pt-3">
         {viewMode === 'map' ? (
           <div className="space-y-3">
-            <RealtimeMap
-              tasks={tasks}
-              centerLat={userLocation.latitude}
-              centerLng={userLocation.longitude}
-            />
+            {/* Engine Switcher */}
+            <div className="flex items-center justify-between text-xs px-1">
+              <span className="font-heading font-bold text-neutral-600">
+                Found {tasks.length} tasks within {selectedRadiusKm}km
+              </span>
+              <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-neutral-200 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setMapEngine('maplibre')}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-heading font-black transition ${
+                    mapEngine === 'maplibre'
+                      ? 'bg-part-green text-white shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  }`}
+                >
+                  MapLibre GL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapEngine('leaflet')}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-heading font-black transition ${
+                    mapEngine === 'leaflet'
+                      ? 'bg-part-green text-white shadow-xs'
+                      : 'text-neutral-500 hover:text-neutral-900'
+                  }`}
+                >
+                  Geoapify Tile
+                </button>
+              </div>
+            </div>
+
+            {/* Selected Map Engine */}
+            {mapEngine === 'maplibre' ? (
+              <MapLibreView
+                tasks={tasks}
+                centerLat={userLocation.latitude}
+                centerLng={userLocation.longitude}
+                radiusKm={selectedRadiusKm}
+                onRadiusChange={(km) => setSelectedRadiusKm(km)}
+                onTaskSelect={(task) => openTaskDetails(task.id)}
+              />
+            ) : (
+              <RealtimeMap
+                tasks={tasks}
+                centerLat={userLocation.latitude}
+                centerLng={userLocation.longitude}
+                initialRadiusKm={selectedRadiusKm}
+                onRadiusChange={(km) => setSelectedRadiusKm(km)}
+              />
+            )}
+
             <p className="text-xs text-neutral-500 text-center font-medium">
-              Interactive PostGIS radius map showing verified tasks across Chennai.
+              Interactive PostGIS radius map showing verified tasks in Chennai with live price tags.
             </p>
           </div>
         ) : (
@@ -213,9 +308,10 @@ export const ExploreScreen: React.FC = () => {
             ) : tasks.length === 0 ? (
               <EmptyState
                 title="No tasks found matching filters"
-                subtitle="Try clearing your category or filter selection to discover more nearby opportunities."
-                actionText="Reset Filters"
+                subtitle={`No tasks found within ${selectedRadiusKm} km of ${currentLocalityName}. Try expanding your radius or changing categories.`}
+                actionText="Expand to 20 km"
                 onAction={() => {
+                  setSelectedRadiusKm(20);
                   setSelectedCategory(undefined);
                   setActiveFilter('nearby');
                   setSearchQuery('');
@@ -228,47 +324,11 @@ export const ExploreScreen: React.FC = () => {
         )}
       </div>
 
-      {/* Neighborhood Location Picker Modal */}
-      {showLocationPicker && (
-        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl p-5 animate-slide-up max-h-[80vh] flex flex-col">
-            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-              <h3 className="font-heading font-black text-base text-neutral-900">
-                Change Discovery Locality
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowLocationPicker(false)}
-                className="w-8 h-8 rounded-full bg-neutral-100 text-neutral-600 font-bold text-sm"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="overflow-y-auto divide-y divide-neutral-100 py-2 flex-1">
-              {CHENNAI_LOCALITIES.map((loc) => (
-                <button
-                  key={loc.name}
-                  type="button"
-                  onClick={() => {
-                    setUserLocation({
-                      locality: `${loc.name}, Chennai`,
-                      latitude: loc.latitude,
-                      longitude: loc.longitude,
-                    });
-                    setShowLocationPicker(false);
-                  }}
-                  className="w-full py-2.5 px-2 text-left flex items-center justify-between text-xs font-semibold text-neutral-800 hover:bg-neutral-50 rounded-lg"
-                >
-                  <span>{loc.name}, Chennai</span>
-                  {currentLocalityName === loc.name && (
-                    <span className="text-part-green font-bold">✓ Selected</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Full Blinkit-style Location Selector Modal */}
+      <LocationSelectorModal
+        isOpen={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+      />
     </div>
   );
 };
