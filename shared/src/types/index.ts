@@ -59,9 +59,11 @@ export type VerificationStatus =
 export interface Profile {
   id: string; // references auth.users
   full_name: string;
+  email?: string | null;
   phone?: string | null;
   avatar_url?: string | null;
   bio?: string | null;
+  default_role?: 'poster' | 'worker';
   preferred_language: AppLanguage;
   city: string; // e.g. "Chennai"
   general_location?: string | null; // e.g. "Velachery, Chennai"
