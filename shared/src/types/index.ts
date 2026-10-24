@@ -56,6 +56,36 @@ export type VerificationStatus =
   | 'verified'
   | 'rejected';
 
+export type CollegeMembershipStatus = 'self_selected' | 'verified';
+export type CampusTaskVisibility = 'COLLEGE_ONLY' | 'EVERYONE_NEARBY';
+
+export interface College {
+  id: string;
+  name: string;
+  short_name: string;
+  city: string;
+  locality?: string;
+  domains: string[];
+  popular_spots: string[];
+  accent_color?: string;
+  badge_bg?: string;
+  emoji?: string;
+  is_verified?: boolean;
+  created_at?: string;
+}
+
+export interface UserCollegeMembership {
+  id: string;
+  user_id: string;
+  college_id: string;
+  college_name: string;
+  status: CollegeMembershipStatus;
+  student_id_or_email?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Profile {
   id: string; // references auth.users
   full_name: string;
@@ -67,6 +97,10 @@ export interface Profile {
   preferred_language: AppLanguage;
   city: string; // e.g. "Chennai"
   general_location?: string | null; // e.g. "Velachery, Chennai"
+  college_id?: string | null;
+  college_name?: string | null;
+  college_status?: CollegeMembershipStatus;
+  student_email?: string | null;
   is_admin: boolean;
   is_worker_available: boolean;
   verification_status: VerificationStatus;
@@ -131,6 +165,15 @@ export interface Task {
   required_skills: string[];
   special_instructions?: string | null;
   status: TaskStatus;
+  // Campus community fields
+  is_campus_task?: boolean;
+  college_id?: string | null;
+  college_name?: string | null;
+  campus_location?: string | null;
+  visibility?: CampusTaskVisibility;
+  requires_verified_student?: boolean;
+  file_attachment_url?: string | null;
+  deadline?: string | null;
   created_at: string;
   updated_at: string;
   // joined relations

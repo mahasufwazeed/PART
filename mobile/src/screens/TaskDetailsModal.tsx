@@ -121,7 +121,7 @@ export const TaskDetailsModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-40 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-      <div className="bg-white w-full max-w-md max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto flex flex-col animate-slide-up">
+      <div className="bg-white w-full max-w-md md:max-w-xl max-h-[92vh] rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-y-auto flex flex-col animate-slide-up">
         {/* Category Banner & Close Button */}
         <div
           style={{
@@ -134,7 +134,7 @@ export const TaskDetailsModal: React.FC = () => {
               style={{ color: categoryDef?.accentColor || '#EA580C' }}
               className="text-xs font-heading font-black uppercase tracking-wider"
             >
-              {categoryName}
+              {task.is_campus_task ? `🎓 Campus: ${task.college_name || 'Community'}` : categoryName}
             </span>
             <StatusBadge status={task.status} />
           </div>
@@ -149,6 +149,27 @@ export const TaskDetailsModal: React.FC = () => {
         </div>
 
         <div className="p-4 space-y-4 flex-1">
+          {/* Campus Community Banner if applicable */}
+          {task.is_campus_task && (
+            <div className="bg-gradient-to-r from-emerald-800 to-part-green text-white p-3 rounded-2xl flex items-center justify-between text-xs shadow-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xl shrink-0">🎓</span>
+                <div className="min-w-0">
+                  <span className="font-heading font-black text-xs block leading-tight truncate">
+                    {task.college_name || 'Campus Peer Task'}
+                  </span>
+                  <span className="text-[10.5px] text-emerald-100 flex items-center gap-1 truncate">
+                    <MapPin className="w-3 h-3 text-brand-yellow shrink-0" />
+                    <span>{task.campus_location || 'Campus Center'}</span>
+                  </span>
+                </div>
+              </div>
+              <span className="text-[9.5px] font-bold bg-white/20 px-2 py-0.5 rounded-full text-white uppercase shrink-0">
+                {task.visibility === 'COLLEGE_ONLY' ? 'College Only' : 'Nearby'}
+              </span>
+            </div>
+          )}
+
           {actionError && (
             <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3 rounded-2xl flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />

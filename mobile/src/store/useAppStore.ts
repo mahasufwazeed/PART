@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { Profile, Task, AppLanguage } from '@part/shared';
 import { authService, mockStore } from '@part/shared';
 
-export type AppTab = 'home' | 'explore' | 'post' | 'activity' | 'profile';
+export type AppTab = 'home' | 'explore' | 'campus' | 'post' | 'activity' | 'profile';
 
 interface AppState {
   currentTab: AppTab;
@@ -20,6 +20,12 @@ interface AppState {
   activeDisputeTaskId: string | null;
   isPostSuccessModalOpen: boolean;
   theme: 'light' | 'dark';
+
+  // Campus Community State
+  selectedCollegeId: string;
+  selectedCollegeName: string;
+  isCollegeSelectorOpen: boolean;
+  isPostCampusTaskOpen: boolean;
 
   // Actions
   setTab: (tab: AppTab) => void;
@@ -39,6 +45,13 @@ interface AppState {
   toggleTheme: () => void;
   refreshProfile: () => void;
   logout: () => void;
+
+  // Campus Community Actions
+  openCollegeSelector: () => void;
+  closeCollegeSelector: () => void;
+  setSelectedCollege: (collegeId: string, collegeName: string) => void;
+  openPostCampusTask: () => void;
+  closePostCampusTask: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -58,6 +71,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   isPostSuccessModalOpen: false,
   theme: 'light',
 
+  // Campus Community State
+  selectedCollegeId: 'vels-university',
+  selectedCollegeName: 'VELS University',
+  isCollegeSelectorOpen: false,
+  isPostCampusTaskOpen: false,
+
   setTab: (tab) => set({ currentTab: tab }),
   setLanguage: (lang) => set({ language: lang }),
   setCurrentProfile: (profile) => {
@@ -70,6 +89,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           latitude: 12.9815,
           longitude: 80.218,
         },
+        selectedCollegeId: profile.college_id || get().selectedCollegeId || 'vels-university',
+        selectedCollegeName: profile.college_name || get().selectedCollegeName || 'VELS University',
       });
     } else {
       set({ currentProfile: null });
@@ -100,4 +121,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     authService.logout();
     set({ currentProfile: null, currentTab: 'home' });
   },
+
+  // Campus Community Actions
+  openCollegeSelector: () => set({ isCollegeSelectorOpen: true }),
+  closeCollegeSelector: () => set({ isCollegeSelectorOpen: false }),
+  setSelectedCollege: (collegeId, collegeName) =>
+    set({ selectedCollegeId: collegeId, selectedCollegeName: collegeName }),
+  openPostCampusTask: () => set({ isPostCampusTaskOpen: true }),
+  closePostCampusTask: () => set({ isPostCampusTaskOpen: false }),
 }));

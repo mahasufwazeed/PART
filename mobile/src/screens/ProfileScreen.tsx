@@ -11,6 +11,7 @@ import {
   CHENNAI_LOCALITIES,
 } from '@part/shared';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
+import { CollegeSelectorModal } from '../components/CollegeSelectorModal';
 import {
   ShieldCheck,
   Star,
@@ -50,6 +51,7 @@ import {
   Pencil,
   User,
   QrCode,
+  GraduationCap,
 } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -99,6 +101,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setUserLocation,
     userLocation,
     logout,
+    selectedCollegeId,
+    selectedCollegeName,
+    isCollegeSelectorOpen,
+    openCollegeSelector,
+    closeCollegeSelector,
   } = useAppStore();
 
   const [earnings, setEarnings] = useState<WorkerEarningsSummary | null>(null);
@@ -512,6 +519,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     Change
                   </button>
                 </div>
+
+                {/* Campus & College Affiliation */}
+                <div className="flex items-center justify-between gap-1 mt-1 text-[10.5px] sm:text-[11px] bg-purple-50/70 border border-purple-200/60 px-2.5 py-1 rounded-xl">
+                  <span className="text-purple-900 font-semibold truncate flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-purple-700 shrink-0" />
+                    <span className="truncate">
+                      {currentProfile.college_name || selectedCollegeName}
+                    </span>
+                    {currentProfile.college_status === 'verified' ? (
+                      <span className="text-[8.5px] font-black uppercase text-emerald-800 bg-emerald-100 border border-emerald-300 px-1 py-0.2 rounded-md">
+                        Verified Student
+                      </span>
+                    ) : (
+                      <span className="text-[8.5px] font-bold text-neutral-500 bg-neutral-100 px-1 py-0.2 rounded-md">
+                        Member
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openCollegeSelector}
+                    className="text-[10px] font-heading font-bold text-purple-700 hover:underline shrink-0 cursor-pointer"
+                  >
+                    Switch
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -683,6 +716,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   <h4 className="font-heading font-bold text-neutral-900">Edit Profile & Details</h4>
                   <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
                     Name, mobile, bio, avatar, skills & UPI handle
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
+            </button>
+
+            {/* Campus & College */}
+            <button
+              id="btn-profile-college"
+              type="button"
+              onClick={openCollegeSelector}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <div className="flex items-center gap-1.5">
+                    <h4 className="font-heading font-bold text-neutral-900">Campus Community & College</h4>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-md">
+                      {currentProfile.college_status === 'verified' ? 'Verified' : 'Member'}
+                    </span>
+                  </div>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
+                    {currentProfile.college_name || selectedCollegeName} • Tap to switch or verify
                   </p>
                 </div>
               </div>
@@ -1896,6 +1955,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             .getSavedAddresses(currentProfile.id)
             .then(setSavedAddresses);
         }}
+      />
+
+      {/* Campus Community College Selector Modal */}
+      <CollegeSelectorModal
+        isOpen={isCollegeSelectorOpen}
+        onClose={closeCollegeSelector}
       />
     </div>
   );

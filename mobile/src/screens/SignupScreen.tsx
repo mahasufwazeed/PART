@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { authService, signupSchema } from '@part/shared';
+import { authService, signupSchema, campusService, CHENNAI_COLLEGES } from '@part/shared';
 import { GoogleAuthButton } from '../components/GoogleAuthButton';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
+import { CollegeSelectorModal } from '../components/CollegeSelectorModal';
 import {
   Eye,
   EyeOff,
@@ -15,6 +16,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Check,
+  GraduationCap,
 } from 'lucide-react';
 
 interface SignupScreenProps {
@@ -36,6 +38,8 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [selectedCollege, setSelectedCollege] = useState('vels-university');
+  const [showCollegeModal, setShowCollegeModal] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -93,6 +97,12 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
       }
 
       if (res.profile) {
+        if (selectedCollege && selectedCollege !== 'other') {
+          const colDef = CHENNAI_COLLEGES.find((c) => c.id === selectedCollege);
+          if (colDef) {
+            await campusService.setUserCollege(res.profile.id, colDef.id, colDef.short_name);
+          }
+        }
         setCurrentProfile(res.profile);
         // Prompt for neighborhood location selection
         setShowLocationModal(true);
@@ -244,6 +254,30 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
             )}
           </div>
 
+          {/* College / University Selection (Campus Community) */}
+          <div className="space-y-1">
+            <label className="block text-xs font-heading font-bold text-neutral-700 flex items-center justify-between">
+              <span className="flex items-center gap-1">
+                <GraduationCap className="w-3.5 h-3.5 text-part-green" />
+                <span>University / College (Campus Community)</span>
+              </span>
+              <span className="text-[10px] text-neutral-400 font-normal">Optional</span>
+            </label>
+            <select
+              value={selectedCollege}
+              onChange={(e) => setSelectedCollege(e.target.value)}
+              className="w-full px-3.5 py-3 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:ring-2 focus:ring-part-green focus:bg-white transition"
+            >
+              <option value="">Select your college (or skip)</option>
+              {CHENNAI_COLLEGES.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.short_name} ({c.locality || c.city})
+                </option>
+              ))}
+              <option value="other">Other College (Suggest later)</option>
+            </select>
+          </div>
+
           {/* Password */}
           <div className="space-y-1">
             <label className="block text-xs font-heading font-bold text-neutral-700">
@@ -376,6 +410,15 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
         isOpen={showLocationModal}
         onClose={() => {
           setShowLocationModal(false);
+          setShowCollegeModal(true);
+        }}
+      />
+
+      {/* Campus Community College Setup Modal */}
+      <CollegeSelectorModal
+        isOpen={showCollegeModal}
+        onClose={() => {
+          setShowCollegeModal(false);
           if (onSuccess) onSuccess();
         }}
       />

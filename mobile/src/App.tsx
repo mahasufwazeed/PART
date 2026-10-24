@@ -10,6 +10,7 @@ import { UpdatePasswordScreen } from './screens/UpdatePasswordScreen';
 import { AuthCallbackScreen } from './screens/AuthCallbackScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { ExploreScreen } from './screens/ExploreScreen';
+import { CampusScreen } from './screens/CampusScreen';
 import { PostTaskScreen } from './screens/PostTaskScreen';
 import { ActivityScreen } from './screens/ActivityScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -67,14 +68,16 @@ export const App: React.FC = () => {
   const TAB_TO_PATH: Record<string, string> = {
     home: '/',
     explore: '/explore',
+    campus: '/campus',
     post: '/post',
     activity: '/activity',
     profile: '/profile',
   };
 
-  const PATH_TO_TAB: Record<string, 'home' | 'explore' | 'post' | 'activity' | 'profile'> = {
+  const PATH_TO_TAB: Record<string, 'home' | 'explore' | 'campus' | 'post' | 'activity' | 'profile'> = {
     '/': 'home',
     '/explore': 'explore',
+    '/campus': 'campus',
     '/post': 'post',
     '/activity': 'activity',
     '/profile': 'profile',
@@ -257,6 +260,8 @@ export const App: React.FC = () => {
         return <HomeScreen />;
       case 'explore':
         return <ExploreScreen />;
+      case 'campus':
+        return <CampusScreen />;
       case 'post':
         return <PostTaskScreen />;
       case 'activity':
