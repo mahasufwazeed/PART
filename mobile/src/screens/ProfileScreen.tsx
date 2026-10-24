@@ -4,8 +4,11 @@ import {
   authService,
   paymentService,
   locationService,
+  reviewService,
   WorkerEarningsSummary,
   SavedAddress,
+  Review,
+  CHENNAI_LOCALITIES,
 } from '@part/shared';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
 import {
@@ -21,6 +24,7 @@ import {
   Bell,
   Lock,
   ChevronRight,
+  ChevronDown,
   Globe,
   FileText,
   UserCheck,
@@ -28,7 +32,6 @@ import {
   CheckCircle2,
   AlertCircle,
   X,
-  Share2,
   Camera,
   MapPin,
   Mail,
@@ -36,6 +39,14 @@ import {
   Bookmark,
   Sparkles,
   ArrowRight,
+  Trash2,
+  Eye,
+  EyeOff,
+  MessageCircle,
+  Check,
+  Plus,
+  ExternalLink,
+  Info,
 } from 'lucide-react';
 
 interface ProfileScreenProps {
@@ -45,22 +56,56 @@ interface ProfileScreenProps {
 export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   onNavigateChangePassword,
 }) => {
-  const { currentProfile, setCurrentProfile, language, setLanguage, setTab, logout } =
-    useAppStore();
+  const {
+    currentProfile,
+    setCurrentProfile,
+    language,
+    setLanguage,
+    setTab,
+    setUserLocation,
+    userLocation,
+    logout,
+  } = useAppStore();
 
   const [earnings, setEarnings] = useState<WorkerEarningsSummary | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [activeRole, setActiveRole] = useState<'poster' | 'worker'>(
     currentProfile?.default_role || 'poster'
   );
 
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  const [showLocationModal, setShowLocationModal] = useState(false);
-  const [showEarningsModal, setShowEarningsModal] = useState(false);
-  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
-  const [showHelpModal, setShowHelpModal] = useState(false);
-  const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
+  // Modal Visibility States
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showSavedAddressesModal, setShowSavedAddressesModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [showSecurityModal, setShowSecurityModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showEarningsModal, setShowEarningsModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Security Form State
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
+
+  // Add Address Form State
+  const [isAddingAddress, setIsAddingAddress] = useState(false);
+  const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Work' | 'Other'>('Home');
+  const [newAddrLine, setNewAddrLine] = useState('');
+  const [newAddrLocality, setNewAddrLocality] = useState(CHENNAI_LOCALITIES[0].name);
+
+  // FAQ Accordion State
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
+
+  // Payout toast state
+  const [payoutMessage, setPayoutMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +113,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     if (currentProfile) {
       paymentService.getWorkerEarnings(currentProfile.id).then(setEarnings);
       locationService.getSavedAddresses(currentProfile.id).then(setSavedAddresses);
+      reviewService.getUserReviews(currentProfile.id).then(setUserReviews);
     }
   }, [currentProfile?.id]);
 
@@ -89,7 +135,6 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 3MB)
     if (file.size > 3 * 1024 * 1024) {
       alert('Avatar image must be under 3MB.');
       return;
@@ -122,10 +167,94 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
+  // Handle In-Modal Password Update
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match.');
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const res = await authService.updatePassword(newPassword);
+      if (res.error) {
+        setPasswordError(res.error);
+      } else {
+        setPasswordSuccess('Password updated successfully!');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => {
+          setShowSecurityModal(false);
+          setPasswordSuccess(null);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setPasswordError(err.message || 'Failed to update password.');
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  // Handle Save New Address
+  const handleSaveNewAddress = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAddrLine.trim()) return;
+
+    const localityObj = CHENNAI_LOCALITIES.find((l) => l.name === newAddrLocality);
+    const lat = localityObj?.latitude || 12.9815;
+    const lng = localityObj?.longitude || 80.218;
+
+    const res = await locationService.saveAddress(currentProfile.id, {
+      label: newAddrLabel,
+      title: `${newAddrLabel} Address`,
+      address_line: newAddrLine.trim(),
+      locality: `${newAddrLocality}, Chennai`,
+      latitude: lat,
+      longitude: lng,
+    });
+
+    if (res.address) {
+      const updated = await locationService.getSavedAddresses(currentProfile.id);
+      setSavedAddresses(updated);
+      setIsAddingAddress(false);
+      setNewAddrLine('');
+      setStatusMessage('New address saved!');
+      setTimeout(() => setStatusMessage(null), 2500);
+    }
+  };
+
+  // Handle Delete Address
+  const handleDeleteAddress = async (addressId: string) => {
+    await locationService.deleteSavedAddress(currentProfile.id, addressId);
+    const updated = await locationService.getSavedAddresses(currentProfile.id);
+    setSavedAddresses(updated);
+  };
+
+  // Handle Set Active Address
+  const handleSelectAddress = (addr: SavedAddress) => {
+    setUserLocation({
+      locality: addr.locality || addr.address_line,
+      latitude: addr.latitude,
+      longitude: addr.longitude,
+    });
+    setShowSavedAddressesModal(false);
+    setStatusMessage(`Active location set to ${addr.locality.split(',')[0]}!`);
+    setTimeout(() => setStatusMessage(null), 2500);
+  };
+
   return (
     <div className="pb-28 px-4 pt-4 max-w-md mx-auto space-y-4 select-none">
       {statusMessage && (
-        <div className="bg-emerald-50 border border-emerald-200 text-part-green text-xs p-3 rounded-2xl flex items-center gap-2 animate-slide-up">
+        <div className="bg-emerald-50 border border-emerald-200 text-part-green text-xs p-3 rounded-2xl flex items-center gap-2 animate-slide-up shadow-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{statusMessage}</span>
         </div>
@@ -200,12 +329,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
             <div className="flex items-center justify-between gap-1 mt-1 text-xs">
               <span className="text-[11px] text-neutral-600 font-semibold truncate flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-part-green shrink-0" />
-                <span className="truncate">{currentProfile.general_location || 'Velachery, Chennai'}</span>
+                <span className="truncate">{userLocation.locality || 'Velachery, Chennai'}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setShowLocationModal(true)}
-                className="text-[10px] font-heading font-bold text-part-green hover:underline shrink-0"
+                className="text-[10px] font-heading font-bold text-part-green hover:underline shrink-0 cursor-pointer"
               >
                 Change
               </button>
@@ -253,8 +382,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       </div>
 
-      {/* 3. Primary Earnings Highlight Card (for Helper / Worker Activity) */}
+      {/* 3. Primary Earnings Highlight Card */}
       <div
+        id="btn-profile-earnings"
+        role="button"
+        tabIndex={0}
         onClick={() => setShowEarningsModal(true)}
         className="bg-gradient-to-r from-part-green to-part-green-forest text-white p-4 rounded-3xl shadow-green cursor-pointer hover:shadow-lg transition-transform active:scale-[0.99] flex items-center justify-between"
       >
@@ -280,8 +412,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       {/* 4. Saved Addresses Quick Tile */}
       <div
-        onClick={() => setShowLocationModal(true)}
-        className="bg-white p-4 rounded-3xl border border-neutral-200/90 shadow-card flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+        id="btn-profile-saved-addresses"
+        role="button"
+        tabIndex={0}
+        onClick={() => setShowSavedAddressesModal(true)}
+        className="bg-white p-4 rounded-3xl border border-neutral-200/90 shadow-card flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer active:scale-[0.99]"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
@@ -301,8 +436,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       {/* 5. Account Navigation Menu */}
       <div className="bg-white rounded-3xl border border-neutral-200/90 shadow-card divide-y divide-neutral-100 overflow-hidden text-xs">
-        {/* My Tasks */}
+        {/* My Tasks & Gigs */}
         <button
+          id="btn-profile-my-tasks"
           type="button"
           onClick={() => setTab('activity')}
           className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
@@ -323,6 +459,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Reviews & Ratings */}
         <button
+          id="btn-profile-reviews"
           type="button"
           onClick={() => setShowReviewsModal(true)}
           className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
@@ -343,8 +480,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Security / Password Reset */}
         <button
+          id="btn-profile-security"
           type="button"
-          onClick={onNavigateChangePassword}
+          onClick={() => setShowSecurityModal(true)}
           className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
         >
           <div className="flex items-center gap-3">
@@ -361,6 +499,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Help & Support */}
         <button
+          id="btn-profile-help"
           type="button"
           onClick={() => setShowHelpModal(true)}
           className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
@@ -379,12 +518,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
         {/* Logout */}
         <button
+          id="btn-profile-logout"
           type="button"
-          onClick={() => {
-            if (confirm('Are you sure you want to log out of PART?')) {
-              logout();
-            }
-          }}
+          onClick={() => setShowLogoutModal(true)}
           className="w-full p-4 flex items-center justify-between hover:bg-rose-50/50 transition cursor-pointer text-rose-600"
         >
           <div className="flex items-center gap-3">
@@ -399,6 +535,708 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           <ChevronRight className="w-4 h-4 text-rose-400" />
         </button>
       </div>
+
+      {/* ============================================================== */}
+      {/* 1. SAVED ADDRESSES MODAL                                      */}
+      {/* ============================================================== */}
+      {showSavedAddressesModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  Saved Addresses
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Manage your pickup and delivery spots across Chennai
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSavedAddressesModal(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {/* Existing Address List */}
+              <div className="space-y-2.5">
+                {savedAddresses.map((addr) => {
+                  const isCurrent = userLocation.locality.includes(addr.locality);
+                  return (
+                    <div
+                      key={addr.id}
+                      className={`p-3.5 rounded-2xl border flex items-start justify-between gap-3 transition ${
+                        isCurrent
+                          ? 'border-part-green bg-emerald-50/50'
+                          : 'border-neutral-200 bg-neutral-50/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-part-green-mint text-part-green flex items-center justify-center shrink-0 mt-0.5">
+                          {addr.label === 'Home' ? (
+                            <Bookmark className="w-4 h-4" />
+                          ) : addr.label === 'Work' ? (
+                            <Briefcase className="w-4 h-4" />
+                          ) : (
+                            <MapPin className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-heading font-bold text-xs text-neutral-900">
+                              {addr.title || addr.label}
+                            </span>
+                            {isCurrent && (
+                              <span className="text-[9px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-md">
+                                Active Location
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-neutral-600 mt-0.5">
+                            {addr.address_line}
+                          </p>
+                          <p className="text-[10px] text-neutral-400 font-medium">
+                            {addr.locality}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!isCurrent && (
+                          <button
+                            type="button"
+                            onClick={() => handleSelectAddress(addr)}
+                            className="px-2.5 py-1 bg-part-green text-white font-heading font-bold text-[10px] rounded-lg shadow-xs hover:bg-part-green-dark cursor-pointer"
+                          >
+                            Use Now
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAddress(addr.id)}
+                          className="p-1.5 rounded-lg text-neutral-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          title="Delete address"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Add Address Form Toggle */}
+              {!isAddingAddress ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingAddress(true)}
+                  className="w-full py-3 border-2 border-dashed border-neutral-300 hover:border-part-green text-neutral-700 hover:text-part-green rounded-2xl font-heading font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Address</span>
+                </button>
+              ) : (
+                <form onSubmit={handleSaveNewAddress} className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-heading font-bold text-xs text-neutral-900">
+                      Add Address Details
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingAddress(false)}
+                      className="text-neutral-400 hover:text-neutral-600 text-xs"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+
+                  {/* Label selector */}
+                  <div className="flex items-center gap-2">
+                    {(['Home', 'Work', 'Other'] as const).map((lbl) => (
+                      <button
+                        key={lbl}
+                        type="button"
+                        onClick={() => setNewAddrLabel(lbl)}
+                        className={`px-3 py-1 rounded-xl text-xs font-heading font-bold transition ${
+                          newAddrLabel === lbl
+                            ? 'bg-part-green text-white shadow-xs'
+                            : 'bg-white border border-neutral-200 text-neutral-600'
+                        }`}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
+                      Street / Apartment / Door No.
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. No. 42, 3rd Cross, Nehru Nagar"
+                      value={newAddrLine}
+                      onChange={(e) => setNewAddrLine(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
+                      Chennai Locality
+                    </label>
+                    <select
+                      value={newAddrLocality}
+                      onChange={(e) => setNewAddrLocality(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green"
+                    >
+                      {CHENNAI_LOCALITIES.map((loc) => (
+                        <option key={loc.name} value={loc.name}>
+                          {loc.name}, Chennai
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 bg-part-green text-white font-heading font-black text-xs rounded-xl shadow-green hover:bg-part-green-dark transition cursor-pointer"
+                  >
+                    Save Address
+                  </button>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 2. REVIEWS & RATINGS MODAL                                     */}
+      {/* ============================================================== */}
+      {showReviewsModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  My Reviews & Reputation
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Verified feedback from Chennai task participants
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReviewsModal(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {/* Dual Rating Scorecards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-amber-50/80 border border-amber-200/80 p-3.5 rounded-2xl text-center space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-800">
+                    Helper Rating
+                  </span>
+                  <div className="flex items-center justify-center gap-1 text-amber-500">
+                    <Star className="w-5 h-5 fill-amber-400 text-amber-400" />
+                    <span className="font-heading font-black text-2xl text-neutral-900">
+                      {currentProfile.rating_as_worker.toFixed(1)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 block">
+                    {currentProfile.total_reviews_as_worker} reviews received
+                  </span>
+                </div>
+
+                <div className="bg-emerald-50/80 border border-emerald-200/80 p-3.5 rounded-2xl text-center space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-part-green-dark">
+                    Poster Rating
+                  </span>
+                  <div className="flex items-center justify-center gap-1 text-part-green">
+                    <Star className="w-5 h-5 fill-part-green text-part-green" />
+                    <span className="font-heading font-black text-2xl text-neutral-900">
+                      {currentProfile.rating_as_requester.toFixed(1)}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500 block">
+                    {currentProfile.total_reviews_as_requester} reviews received
+                  </span>
+                </div>
+              </div>
+
+              {/* Verified Trust Badges */}
+              <div className="bg-neutral-50 rounded-2xl p-3 border border-neutral-200/80 space-y-2 text-xs">
+                <div className="flex items-center gap-2 text-neutral-800 font-semibold">
+                  <ShieldCheck className="w-4 h-4 text-part-green shrink-0" />
+                  <span>Aadhaar / Mobile Verified Profile</span>
+                </div>
+                <div className="flex items-center gap-2 text-neutral-800 font-semibold">
+                  <CheckCircle className="w-4 h-4 text-part-green shrink-0" />
+                  <span>100% Escrow Task Completion Record</span>
+                </div>
+              </div>
+
+              {/* Verified Review List */}
+              <div className="space-y-3 pt-1">
+                <span className="text-[11px] font-heading font-bold text-neutral-400 uppercase tracking-wider block">
+                  Recent Community Reviews
+                </span>
+
+                {userReviews.length > 0 ? (
+                  userReviews.map((rev) => (
+                    <div key={rev.id} className="bg-white p-3.5 rounded-2xl border border-neutral-200/90 shadow-xs space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-brand-yellow font-heading font-bold text-[10px] flex items-center justify-center">
+                            {rev.reviewer?.full_name?.charAt(0) || 'U'}
+                          </div>
+                          <span className="font-heading font-bold text-xs text-neutral-900">
+                            {rev.reviewer?.full_name || 'PART User'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5 text-amber-500">
+                          {Array.from({ length: rev.rating }).map((_, i) => (
+                            <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-neutral-700 italic">
+                        "{rev.feedback}"
+                      </p>
+                      <span className="text-[10px] text-neutral-400 block">
+                        Verified {rev.role_reviewed === 'worker' ? 'Helper' : 'Requester'} • {new Date(rev.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 text-center space-y-1.5">
+                    <Star className="w-6 h-6 text-amber-400 mx-auto fill-amber-400" />
+                    <p className="font-heading font-bold text-xs text-neutral-900">
+                      Perfect 5.0 Rating Record
+                    </p>
+                    <p className="text-[11px] text-neutral-500">
+                      Complete tasks in Chennai to start collecting public neighborhood reviews!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 3. SECURITY & PASSWORD MODAL                                   */}
+      {/* ============================================================== */}
+      {showSecurityModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  Security & Password
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Update your account password or trigger recovery
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSecurityModal(false);
+                  setPasswordError(null);
+                  setPasswordSuccess(null);
+                }}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdatePassword} className="p-5 overflow-y-auto space-y-4">
+              {passwordError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-2xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-part-green text-xs p-3 rounded-2xl flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{passwordSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
+                  New Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="Enter at least 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-part-green focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    placeholder="Re-type your new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-3.5 pr-10 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-semibold text-neutral-900 focus:outline-none focus:ring-2 focus:ring-part-green focus:bg-white transition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isUpdatingPassword}
+                className="w-full py-3 bg-part-green hover:bg-part-green-dark text-white font-heading font-black text-xs rounded-2xl shadow-green transition cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isUpdatingPassword ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Update Password</span>
+                  </>
+                )}
+              </button>
+
+              <div className="pt-2 border-t border-neutral-100 text-center">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (currentProfile.email) {
+                      await authService.sendPasswordRecoveryEmail(currentProfile.email);
+                      setPasswordSuccess(`Recovery link sent to ${currentProfile.email}`);
+                    }
+                  }}
+                  className="text-xs font-heading font-bold text-part-green hover:underline cursor-pointer"
+                >
+                  Send recovery link to {currentProfile.email}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 4. HELP & SUPPORT MODAL                                        */}
+      {/* ============================================================== */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  Help & Customer Support
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Chennai support desk • 7:00 AM – 11:00 PM IST
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowHelpModal(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 text-xs">
+              {/* Direct Action Contacts */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <a
+                  href="tel:+914428334455"
+                  className="p-3 bg-emerald-50 border border-emerald-200 text-part-green-dark rounded-2xl flex items-center gap-2.5 hover:bg-emerald-100 transition shadow-xs"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-part-green text-white flex items-center justify-center shrink-0">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-heading font-black text-xs block">Call Hotline</span>
+                    <span className="text-[10px] text-neutral-500">+91 44 2833 4455</span>
+                  </div>
+                </a>
+
+                <a
+                  href="https://wa.me/919840123456?text=Hi%20PART%20Support%2C%20I%20need%20help%20with%20a%20task."
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-3 bg-green-50 border border-green-200 text-green-900 rounded-2xl flex items-center gap-2.5 hover:bg-green-100 transition shadow-xs"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-green-600 text-white flex items-center justify-center shrink-0">
+                    <MessageCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-heading font-black text-xs block">WhatsApp Desk</span>
+                    <span className="text-[10px] text-neutral-500">Instant Chat</span>
+                  </div>
+                </a>
+              </div>
+
+              {/* Email & Hub Info */}
+              <div className="bg-neutral-50 p-3.5 rounded-2xl border border-neutral-200 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading font-bold text-neutral-900">Email Inquiries:</span>
+                  <a href="mailto:support@part.in" className="text-part-green font-bold hover:underline">
+                    support@part.in
+                  </a>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-neutral-500 pt-1 border-t border-neutral-200/60">
+                  <span>Chennai Hub:</span>
+                  <span>Velachery / Taramani Tech Corridor</span>
+                </div>
+              </div>
+
+              {/* Interactive Accordion FAQs */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[11px] font-heading font-bold text-neutral-400 uppercase tracking-wider block">
+                  Frequently Asked Questions
+                </span>
+
+                {[
+                  {
+                    q: 'How does escrow protection work?',
+                    a: 'When you accept a task, funds are placed into platform escrow or settled directly via Cash on Completion. Workers are guaranteed full payout upon verified completion.',
+                  },
+                  {
+                    q: 'How are workers verified in Chennai?',
+                    a: 'All participants register with mobile OTP and email verification. Workers on high-value gigs provide verified government ID.',
+                  },
+                  {
+                    q: 'What if a helper cancels or is delayed?',
+                    a: 'You can chat or call the helper in real time. If the worker fails to arrive within 30 minutes, you can reassign the task with zero penalties.',
+                  },
+                  {
+                    q: 'What are the platform fees?',
+                    a: 'PART charges a transparent 5% platform fee on completed gigs to cover escrow guarantee, customer support, and insurance.',
+                  },
+                ].map((item, idx) => {
+                  const isOpen = expandedFaq === idx;
+                  return (
+                    <div
+                      key={idx}
+                      className="border border-neutral-200 rounded-2xl overflow-hidden bg-white shadow-xs"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setExpandedFaq(isOpen ? null : idx)}
+                        className="w-full p-3 text-left font-heading font-bold text-xs text-neutral-900 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+                      >
+                        <span>{item.q}</span>
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${
+                            isOpen ? 'rotate-180 text-part-green' : ''
+                          }`}
+                        />
+                      </button>
+                      {isOpen && (
+                        <div className="p-3 pt-0 text-[11px] text-neutral-600 border-t border-neutral-100 bg-neutral-50/50 leading-relaxed">
+                          {item.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 5. EARNINGS & SETTLEMENTS LEDGER MODAL                         */}
+      {/* ============================================================== */}
+      {showEarningsModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  My Earnings Ledger
+                </h3>
+                <p className="text-[11px] text-neutral-500">
+                  Instant daily settlements to your connected UPI
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEarningsModal(false);
+                  setPayoutMessage(null);
+                }}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4">
+              {payoutMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-part-green text-xs p-3 rounded-2xl flex items-center gap-2 animate-slide-up">
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                  <span>{payoutMessage}</span>
+                </div>
+              )}
+
+              {/* Total Banner */}
+              <div className="bg-gradient-to-r from-part-green to-part-green-dark text-white p-4 rounded-2xl shadow-green space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">
+                  Total Settled Balance
+                </span>
+                <div className="font-heading font-black text-3xl">
+                  ₹{earnings?.totalEarnedInr || 0}
+                </div>
+                <div className="flex items-center gap-3 pt-1 text-[11px] text-emerald-100">
+                  <span>In Escrow: ₹{earnings?.pendingPaymentInr || 0}</span>
+                  <span>•</span>
+                  <span>Gigs Completed: {earnings?.completedTasksCount || 0}</span>
+                </div>
+              </div>
+
+              {/* Connected UPI Settlement Details */}
+              <div className="bg-neutral-50 p-3.5 rounded-2xl border border-neutral-200 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading font-bold text-neutral-900">Connected UPI Account:</span>
+                  <span className="font-mono text-xs font-bold text-part-green bg-part-green-mint px-2 py-0.5 rounded-md">
+                    {currentProfile.email?.split('@')[0] || 'worker'}@okhdfcbank
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-500">
+                  Earnings are automatically disbursed every evening at 11:59 PM IST directly to your UPI ID.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPayoutMessage('Instant payout request received! Funds will reflect in your UPI within 15 minutes.');
+                  }}
+                  className="w-full py-2 bg-white hover:bg-neutral-100 text-neutral-900 font-heading font-bold text-xs rounded-xl border border-neutral-300 shadow-xs transition cursor-pointer"
+                >
+                  Request Instant Payout
+                </button>
+              </div>
+
+              {/* Transaction List */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[11px] font-heading font-bold text-neutral-400 uppercase tracking-wider block">
+                  Recent Settlement Ledger
+                </span>
+
+                {earnings?.payments && earnings.payments.length > 0 ? (
+                  earnings.payments.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-3 bg-white border border-neutral-200 rounded-2xl flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <span className="font-heading font-bold text-neutral-900 block">
+                          Gig Payout #{p.id.slice(-6)}
+                        </span>
+                        <span className="text-[10px] text-neutral-400">
+                          {new Date(p.created_at).toLocaleDateString()} • {p.payment_method.replace(/_/g, ' ')}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-heading font-black text-part-green text-sm block">
+                          +₹{p.worker_amount_inr}
+                        </span>
+                        <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md uppercase">
+                          {p.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 text-center text-xs text-neutral-500">
+                    No transactions yet. Complete gigs to accumulate earnings in Chennai!
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 6. LOG OUT CONFIRMATION MODAL                                  */}
+      {/* ============================================================== */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 select-none">
+          <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5 animate-scale-in text-center space-y-3.5 border border-neutral-200">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+              <LogOut className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="font-heading font-black text-base text-neutral-900">
+                Log Out of PART?
+              </h3>
+              <p className="text-xs text-neutral-500 mt-1">
+                You will be signed out from this device. You can sign back in anytime with your email or Google account.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLogoutModal(false)}
+                className="py-2.5 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-heading font-bold text-xs rounded-xl transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowLogoutModal(false);
+                  logout();
+                }}
+                className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-heading font-black text-xs rounded-xl shadow-md transition cursor-pointer"
+              >
+                Yes, Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Location Selector Modal */}
       <LocationSelectorModal
