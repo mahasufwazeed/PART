@@ -3,6 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { CHENNAI_LOCALITIES } from '@part/shared';
 import { MapPin, ChevronDown, User, Globe, Check, Bell } from 'lucide-react';
 import { LocationSelectorModal } from './LocationSelectorModal';
+import { PartLogo } from './PartLogo';
 
 interface PARTHeaderProps {
   onSearchClick?: () => void;
@@ -31,22 +32,12 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
         <div className="flex items-center justify-between gap-2 mb-2">
           {/* Logo & Tagline Pill */}
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setTab('home')}>
-              <div className="w-8 h-8 rounded-xl bg-brand-dark text-brand-yellow font-heading font-black text-lg flex items-center justify-center shadow-sm">
-                P
-              </div>
-              <div>
-                <span className="font-heading font-black text-xl tracking-tight leading-none block">
-                  PART
-                </span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-800/80 block -mt-0.5">
-                  People At Right Time
-                </span>
-              </div>
+            <div className="cursor-pointer" onClick={() => setTab('home')}>
+              <PartLogo variant="horizontal" size="sm" />
             </div>
 
             <span className="bg-brand-dark/10 text-brand-dark text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider border border-brand-dark/10 hidden sm:inline-block">
-              HELP NEAR YOU
+              CAMPUS & LOCAL
             </span>
           </div>
 

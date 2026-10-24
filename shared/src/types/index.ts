@@ -101,6 +101,9 @@ export interface Profile {
   college_name?: string | null;
   college_status?: CollegeMembershipStatus;
   student_email?: string | null;
+  user_type?: 'student' | 'individual' | 'organization';
+  department?: string | null;
+  year_of_study?: string | null;
   is_admin: boolean;
   is_worker_available: boolean;
   verification_status: VerificationStatus;

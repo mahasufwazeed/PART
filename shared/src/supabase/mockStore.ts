@@ -13,6 +13,7 @@ import {
   Notification,
   College,
   UserCollegeMembership,
+  UserBlock,
 } from '../types';
 import { CHENNAI_COLLEGES } from '../constants/colleges';
 

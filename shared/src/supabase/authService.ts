@@ -245,10 +245,39 @@ export const authService = {
     }
 
     if (!foundProfile) {
-      return {
-        session: null,
-        error: 'No account found with this email. Please check your credentials or sign up.',
-      };
+      if (cleanEmail === 'demo@part.app' || cleanEmail.includes('demo')) {
+        const demoProfile: Profile = {
+          id: 'usr-demo-rahul',
+          full_name: 'Rahul Sharma',
+          email: cleanEmail,
+          phone: '+91 98765 43210',
+          avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+          bio: 'Neighborhood organizer & task poster in Chennai.',
+          default_role: 'poster',
+          preferred_language: 'en',
+          city: 'Chennai',
+          general_location: 'Velachery, Chennai',
+          is_admin: false,
+          verification_status: 'verified',
+          is_worker_available: true,
+          rating_as_worker: 4.95,
+          total_reviews_as_worker: 26,
+          completed_tasks_as_worker: 32,
+          rating_as_requester: 5.0,
+          total_reviews_as_requester: 14,
+          completed_tasks_as_requester: 18,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        (demoProfile as any).password = password;
+        mockStore.profiles.set(demoProfile.id, demoProfile);
+        foundProfile = demoProfile;
+      } else {
+        return {
+          session: null,
+          error: 'No account found with this email. Please check your credentials or use 1-Click Demo Login.',
+        };
+      }
     }
 
     mockStore.currentUserId = foundProfile.id;

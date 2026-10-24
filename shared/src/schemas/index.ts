@@ -47,6 +47,7 @@ export const updatePasswordSchema = z
 
 export const onboardingProfileSchema = z.object({
   full_name: z.string().min(2, 'Full name must be at least 2 characters').max(60),
+  phone: z.string().optional().nullable(),
   bio: z.string().max(300, 'Bio must be under 300 characters').optional().nullable(),
   city: z.string().min(2, 'City is required').default('Chennai'),
   general_location: z.string().min(2, 'Locality is required (e.g. Velachery)').max(100),

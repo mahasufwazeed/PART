@@ -221,16 +221,17 @@ export const App: React.FC = () => {
   // Handle Signup Route: /signup
   if (currentPath === '/signup') {
     return (
-      <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
-        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
-          <SignupScreen
-            onNavigateLogin={() => navigateTo('/login')}
-            onSuccess={() => {
-              const dest = returnTo || '/';
-              navigateTo(dest);
-            }}
-          />
-        </div>
+      <div className="min-h-screen w-full bg-[#EDF3EC] font-sans antialiased">
+        <LoginScreen
+          initialMode="signup"
+          returnTo={returnTo}
+          onNavigateSignup={() => navigateTo('/signup')}
+          onNavigateForgotPassword={() => navigateTo('/forgot-password')}
+          onSuccess={() => {
+            const dest = returnTo || '/';
+            navigateTo(dest);
+          }}
+        />
       </div>
     );
   }
@@ -238,18 +239,16 @@ export const App: React.FC = () => {
   // Handle Login Route: /login (or when unauthenticated on protected routes)
   if (!currentProfile || currentPath === '/login') {
     return (
-      <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
-        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
-          <LoginScreen
-            returnTo={returnTo || (currentPath !== '/login' ? currentPath : undefined)}
-            onNavigateSignup={() => navigateTo('/signup')}
-            onNavigateForgotPassword={() => navigateTo('/forgot-password')}
-            onSuccess={() => {
-              const dest = returnTo || '/';
-              navigateTo(dest);
-            }}
-          />
-        </div>
+      <div className="min-h-screen w-full bg-[#0B132B] font-sans antialiased">
+        <LoginScreen
+          returnTo={returnTo || (currentPath !== '/login' ? currentPath : undefined)}
+          onNavigateSignup={() => navigateTo('/signup')}
+          onNavigateForgotPassword={() => navigateTo('/forgot-password')}
+          onSuccess={() => {
+            const dest = returnTo || '/';
+            navigateTo(dest);
+          }}
+        />
       </div>
     );
   }
