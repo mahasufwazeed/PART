@@ -9,6 +9,7 @@
     "admin"
   ],
   "scripts": {
+    "preinstall": "node render-start.js",
     "build": "npm --workspace=mobile run build",
     "start": "node server.js",
     "test": "vitest run",
