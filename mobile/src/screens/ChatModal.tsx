@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { chatService, Message, mockStore } from '@part/shared';
+import { chatService, disputeService, Message, mockStore } from '@part/shared';
 import {
   X,
   Send,
@@ -30,10 +30,22 @@ export const ChatModal: React.FC = () => {
 
   const task = activeChatTaskId ? mockStore.tasks.get(activeChatTaskId) : null;
 
+  // Resolve other participant
+  const assignment = activeChatTaskId
+    ? Array.from(mockStore.assignments.values()).find((a) => a.task_id === activeChatTaskId)
+    : null;
+  const otherParticipantId =
+    task && currentProfile
+      ? task.requester_id === currentProfile.id
+        ? assignment?.worker_id || (task as any)?.assigned_worker_id || ''
+        : task.requester_id
+      : '';
+
   // Participant authorization check
   const isAuthorized =
     Boolean(currentProfile && task && (
       task.requester_id === currentProfile.id ||
+      assignment?.worker_id === currentProfile.id ||
       (task as any).assigned_worker_id === currentProfile.id ||
       Array.from(mockStore.applications.values()).some(
         (a) => a.task_id === task.id && a.worker_id === currentProfile.id
@@ -44,11 +56,6 @@ export const ChatModal: React.FC = () => {
     if (!activeChatTaskId || !currentProfile) return;
 
     const initChat = async () => {
-      const otherParticipantId =
-        task?.requester_id === currentProfile.id
-          ? (task as any)?.assigned_worker_id || ''
-          : task?.requester_id || '';
-
       const conv = await chatService.getOrCreateTaskConversation(
         activeChatTaskId,
         currentProfile.id,
@@ -61,7 +68,7 @@ export const ChatModal: React.FC = () => {
     };
 
     initChat();
-  }, [activeChatTaskId, currentProfile?.id]);
+  }, [activeChatTaskId, currentProfile?.id, otherParticipantId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -124,14 +131,26 @@ export const ChatModal: React.FC = () => {
     }
   };
 
-  const handleBlockUser = () => {
+  const handleBlockUser = async () => {
     setShowMenu(false);
-    setSafetyNotice('User has been blocked. They can no longer contact you.');
+    if (otherParticipantId && currentProfile) {
+      await disputeService.blockUser(currentProfile.id, otherParticipantId);
+      setSafetyNotice('User has been blocked. They can no longer contact you.');
+    }
   };
 
-  const handleReportUser = () => {
+  const handleReportUser = async () => {
     setShowMenu(false);
-    setSafetyNotice('Report submitted to Chennai Safety Officers. Evidence logged.');
+    if (currentProfile && task) {
+      await disputeService.submitReport({
+        reporterId: currentProfile.id,
+        reportedUserId: otherParticipantId || undefined,
+        reportedTaskId: task.id,
+        reason: 'Safety concern / inappropriate behavior in chat',
+        details: `Report filed by ${currentProfile.full_name} during task "${task.title}".`,
+      });
+      setSafetyNotice('Report submitted to Chennai Safety Officers. Evidence logged.');
+    }
   };
 
   const quickReplies = [

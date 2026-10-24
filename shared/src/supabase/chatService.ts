@@ -1,6 +1,8 @@
 import { supabase, isLiveSupabaseConfigured } from './client';
 import { mockStore } from './mockStore';
 import { Conversation, Message } from '../types';
+import { disputeService } from './disputeService';
+import { notificationService } from './notificationService';
 
 export const chatService = {
   /**
@@ -97,6 +99,27 @@ export const chatService = {
     senderId: string,
     content: string
   ): Promise<Message> {
+    // Resolve other participant
+    let otherParticipantId: string | null = null;
+    const conv = mockStore.conversations.get(conversationId);
+    if (conv?.task_id) {
+      const task = mockStore.tasks.get(conv.task_id);
+      if (task) {
+        if (task.requester_id === senderId) {
+          const asgn = Array.from(mockStore.assignments.values()).find(
+            (a) => a.task_id === task.id
+          );
+          otherParticipantId = asgn?.worker_id || null;
+        } else {
+          otherParticipantId = task.requester_id;
+        }
+      }
+    }
+
+    if (otherParticipantId && (await disputeService.isUserBlocked(senderId, otherParticipantId))) {
+      throw new Error('Cannot send message: communication between these users is restricted.');
+    }
+
     if (isLiveSupabaseConfigured) {
       const { data, error } = await supabase
         .from('messages')
@@ -109,6 +132,19 @@ export const chatService = {
         .single();
 
       if (error) throw new Error(error.message);
+
+      if (otherParticipantId) {
+        const sender = mockStore.profiles.get(senderId);
+        await notificationService.createNotification({
+          userId: otherParticipantId,
+          title: 'New Message',
+          body: `${sender?.full_name || 'User'}: ${content.slice(0, 50)}`,
+          eventType: 'CHAT_MESSAGE',
+          referenceType: 'task',
+          referenceId: conv?.task_id,
+        });
+      }
+
       return data as Message;
     }
 
@@ -123,6 +159,19 @@ export const chatService = {
     };
 
     mockStore.messages.set(msgId, newMsg);
+
+    if (otherParticipantId) {
+      const sender = mockStore.profiles.get(senderId);
+      await notificationService.createNotification({
+        userId: otherParticipantId,
+        title: 'New Message',
+        body: `${sender?.full_name || 'User'}: ${content.slice(0, 50)}`,
+        eventType: 'CHAT_MESSAGE',
+        referenceType: 'task',
+        referenceId: conv?.task_id,
+      });
+    }
+
     return newMsg;
   },
 };

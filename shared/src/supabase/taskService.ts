@@ -16,6 +16,8 @@ import {
   assertValidTaskTransition,
   canAcceptApplications,
 } from '../utils/stateMachine';
+import { disputeService } from './disputeService';
+import { notificationService } from './notificationService';
 
 export const taskService = {
   /**
@@ -334,6 +336,15 @@ export const taskService = {
       };
     }
 
+    // Check if communication is blocked
+    const isBlocked = await disputeService.isUserBlocked(workerId, task.requester_id);
+    if (isBlocked) {
+      return {
+        application: null as any,
+        error: 'Unable to apply: communication between these users is restricted.',
+      };
+    }
+
     const newApp: TaskApplication = {
       id: `app-${Date.now()}`,
       task_id: taskId,
@@ -345,6 +356,18 @@ export const taskService = {
     };
 
     mockStore.applications.set(newApp.id, newApp);
+
+    // Dispatch notification to task requester
+    const worker = mockStore.profiles.get(workerId);
+    await notificationService.createNotification({
+      userId: task.requester_id,
+      title: 'New Task Application',
+      body: `${worker?.full_name || 'A nearby worker'} applied for "${task.title}".`,
+      eventType: 'TASK_APPLICATION',
+      referenceType: 'task',
+      referenceId: taskId,
+    });
+
     return { application: newApp };
   },
 
@@ -417,6 +440,16 @@ export const taskService = {
       mockStore.conversations.set(conv.id, conv);
     }
 
+    // Dispatch notification to selected worker
+    await notificationService.createNotification({
+      userId: workerId,
+      title: 'Application Accepted! 🎉',
+      body: `You were selected for "${task.title}". Tap to view task details and open chat.`,
+      eventType: 'TASK_ASSIGNED',
+      referenceType: 'task',
+      referenceId: taskId,
+    });
+
     return { assignment: newAssignment };
   },
 
@@ -468,6 +501,16 @@ export const taskService = {
       assignment.completed_at = new Date().toISOString();
     }
 
+    // Dispatch notification to requester
+    await notificationService.createNotification({
+      userId: task.requester_id,
+      title: 'Completion Submitted',
+      body: `Worker has submitted completion evidence for "${task.title}". Please review and confirm.`,
+      eventType: 'COMPLETION_SUBMITTED',
+      referenceType: 'task',
+      referenceId: taskId,
+    });
+
     return { success: true };
   },
 
@@ -493,6 +536,16 @@ export const taskService = {
     for (const [id, asgn] of mockStore.assignments.entries()) {
       if (asgn.task_id === taskId) {
         asgn.status = 'completed';
+
+        // Dispatch notification to worker
+        await notificationService.createNotification({
+          userId: asgn.worker_id,
+          title: 'Task Completed & Confirmed! 💰',
+          body: `Requester confirmed completion of "${task.title}". Payment is ready.`,
+          eventType: 'TASK_COMPLETED',
+          referenceType: 'task',
+          referenceId: taskId,
+        });
       }
     }
 

@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { CHENNAI_LOCALITIES } from '@part/shared';
-import { MapPin, ChevronDown, User, Globe, Check } from 'lucide-react';
+import { MapPin, ChevronDown, User, Globe, Check, Bell } from 'lucide-react';
 import { LocationSelectorModal } from './LocationSelectorModal';
-
 
 interface PARTHeaderProps {
   onSearchClick?: () => void;
@@ -17,6 +16,8 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
     language,
     setLanguage,
     setTab,
+    openNotifications,
+    unreadNotificationsCount,
   } = useAppStore();
 
   const [showLocationModal, setShowLocationModal] = useState(false);
@@ -76,6 +77,21 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
                 தமிழ்
               </button>
             </div>
+
+            {/* Notification Bell */}
+            <button
+              type="button"
+              onClick={openNotifications}
+              aria-label="View Notifications"
+              className="w-8 h-8 rounded-full bg-white text-brand-dark flex items-center justify-center relative shadow-xs border-2 border-brand-dark/20 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+            >
+              <Bell className="w-4 h-4 text-brand-dark" />
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-part-green text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-brand-yellow shadow-xs">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
 
             {/* Profile Avatar */}
             <button

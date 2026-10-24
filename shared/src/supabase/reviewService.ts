@@ -1,6 +1,7 @@
 import { supabase, isLiveSupabaseConfigured } from './client';
 import { mockStore } from './mockStore';
 import { Review } from '../types';
+import { notificationService } from './notificationService';
 
 export const reviewService = {
   /**
@@ -75,6 +76,17 @@ export const reviewService = {
         profile.total_reviews_as_requester = userReviews.length;
       }
     }
+
+    // Dispatch notification to reviewee
+    const reviewer = mockStore.profiles.get(reviewerId);
+    await notificationService.createNotification({
+      userId: revieweeId,
+      title: 'New Review Received ★',
+      body: `${reviewer?.full_name || 'A user'} gave you a ${rating}★ rating: "${feedback.slice(0, 50)}"`,
+      eventType: 'REVIEW_RECEIVED',
+      referenceType: 'task',
+      referenceId: taskId,
+    });
 
     return { review: newRev };
   },

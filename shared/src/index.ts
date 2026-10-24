@@ -18,6 +18,7 @@ export * from './supabase/chatService';
 export * from './supabase/paymentService';
 export * from './supabase/reviewService';
 export * from './supabase/disputeService';
+export * from './supabase/notificationService';
 export * from './supabase/locationService';
 export * from './services/geoapifyService';
 

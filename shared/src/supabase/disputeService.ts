@@ -1,6 +1,6 @@
 import { supabase, isLiveSupabaseConfigured } from './client';
 import { mockStore } from './mockStore';
-import { Dispute, Report, DisputeStatus } from '../types';
+import { Dispute, Report, DisputeStatus, UserBlock, Profile } from '../types';
 
 export const disputeService = {
   /**
@@ -28,6 +28,14 @@ export const disputeService = {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        await supabase.from('disputes').insert(newDispute);
+      } catch (err) {
+        console.warn('Supabase raiseDispute error:', err);
+      }
+    }
 
     mockStore.disputes.set(disputeId, newDispute);
     task.status = 'DISPUTED';
@@ -57,8 +65,126 @@ export const disputeService = {
       created_at: new Date().toISOString(),
     };
 
+    if (isLiveSupabaseConfigured) {
+      try {
+        await supabase.from('reports').insert(newReport);
+      } catch (err) {
+        console.warn('Supabase submitReport error:', err);
+      }
+    }
+
     mockStore.reports.set(reportId, newReport);
     return { report: newReport };
+  },
+
+  /**
+   * Block a user
+   */
+  async blockUser(
+    blockerId: string,
+    blockedId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    if (blockerId === blockedId) {
+      return { success: false, error: 'You cannot block yourself' };
+    }
+
+    const blockId = `block-${blockerId}-${blockedId}`;
+    const block: UserBlock = {
+      id: blockId,
+      blocker_id: blockerId,
+      blocked_id: blockedId,
+      created_at: new Date().toISOString(),
+    };
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        await supabase.from('user_blocks').upsert({
+          blocker_id: blockerId,
+          blocked_id: blockedId,
+        });
+      } catch (err) {
+        console.warn('Supabase blockUser error:', err);
+      }
+    }
+
+    mockStore.userBlocks.set(blockId, block);
+    return { success: true };
+  },
+
+  /**
+   * Unblock a user
+   */
+  async unblockUser(
+    blockerId: string,
+    blockedId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const blockId = `block-${blockerId}-${blockedId}`;
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        await supabase
+          .from('user_blocks')
+          .delete()
+          .eq('blocker_id', blockerId)
+          .eq('blocked_id', blockedId);
+      } catch (err) {
+        console.warn('Supabase unblockUser error:', err);
+      }
+    }
+
+    mockStore.userBlocks.delete(blockId);
+    return { success: true };
+  },
+
+  /**
+   * Check if communication or collaboration is blocked between two users (bi-directional check)
+   */
+  async isUserBlocked(userAId: string, userBId: string): Promise<boolean> {
+    if (!userAId || !userBId) return false;
+
+    // Check in-memory store
+    for (const [_, block] of mockStore.userBlocks.entries()) {
+      if (
+        (block.blocker_id === userAId && block.blocked_id === userBId) ||
+        (block.blocker_id === userBId && block.blocked_id === userAId)
+      ) {
+        return true;
+      }
+    }
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('user_blocks')
+          .select('blocker_id, blocked_id')
+          .or(
+            `and(blocker_id.eq.${userAId},blocked_id.eq.${userBId}),and(blocker_id.eq.${userBId},blocked_id.eq.${userAId})`
+          )
+          .maybeSingle();
+
+        if (!error && data) return true;
+      } catch (err) {
+        // Fallback to false
+      }
+    }
+
+    return false;
+  },
+
+  /**
+   * Get all users blocked by a specific user
+   */
+  async getBlockedUsers(userId: string): Promise<Profile[]> {
+    const blockedIds: string[] = [];
+    for (const [_, block] of mockStore.userBlocks.entries()) {
+      if (block.blocker_id === userId) {
+        blockedIds.push(block.blocked_id);
+      }
+    }
+
+    return blockedIds
+      .map((id) => mockStore.profiles.get(id))
+      .filter((p): p is Profile => Boolean(p));
   },
 
   /**

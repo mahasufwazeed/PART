@@ -27,6 +27,10 @@ interface AppState {
   isCollegeSelectorOpen: boolean;
   isPostCampusTaskOpen: boolean;
 
+  // Notifications State
+  isNotificationsOpen: boolean;
+  unreadNotificationsCount: number;
+
   // Actions
   setTab: (tab: AppTab) => void;
   setLanguage: (lang: AppLanguage) => void;
@@ -42,6 +46,9 @@ interface AppState {
   closeReview: () => void;
   openDispute: (taskId: string) => void;
   closeDispute: () => void;
+  openNotifications: () => void;
+  closeNotifications: () => void;
+  setUnreadNotificationsCount: (count: number) => void;
   toggleTheme: () => void;
   refreshProfile: () => void;
   logout: () => void;
@@ -77,6 +84,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   isCollegeSelectorOpen: false,
   isPostCampusTaskOpen: false,
 
+  // Notifications State
+  isNotificationsOpen: false,
+  unreadNotificationsCount: 0,
+
   setTab: (tab) => set({ currentTab: tab }),
   setLanguage: (lang) => set({ language: lang }),
   setCurrentProfile: (profile) => {
@@ -108,6 +119,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   closeReview: () => set({ activeReviewTaskId: null }),
   openDispute: (taskId) => set({ activeDisputeTaskId: taskId }),
   closeDispute: () => set({ activeDisputeTaskId: null }),
+  openNotifications: () => set({ isNotificationsOpen: true }),
+  closeNotifications: () => set({ isNotificationsOpen: false }),
+  setUnreadNotificationsCount: (count) => set({ unreadNotificationsCount: count }),
   toggleTheme: () =>
     set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
   refreshProfile: () => {

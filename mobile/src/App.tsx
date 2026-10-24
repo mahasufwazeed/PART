@@ -19,6 +19,7 @@ import { ChatModal } from './screens/ChatModal';
 import { PaymentModal } from './screens/PaymentModal';
 import { ReviewModal } from './screens/ReviewModal';
 import { DisputeModal } from './screens/DisputeModal';
+import { NotificationsModal } from './components/NotificationsModal';
 
 export const App: React.FC = () => {
   const { currentTab, setTab, currentProfile, setCurrentProfile } = useAppStore();
@@ -295,6 +296,7 @@ export const App: React.FC = () => {
         <PaymentModal />
         <ReviewModal />
         <DisputeModal />
+        <NotificationsModal />
 
         {/* Bottom Navigation */}
         <BottomNav />

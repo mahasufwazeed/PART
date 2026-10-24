@@ -31,6 +31,7 @@ export class LocalMarketplaceStore {
   notifications: Map<string, Notification> = new Map();
   savedAddresses: Map<string, any> = new Map();
   workerLocations: Map<string, any> = new Map();
+  userBlocks: Map<string, UserBlock> = new Map();
   colleges: Map<string, College> = new Map();
   collegeMemberships: Map<string, UserCollegeMembership> = new Map();
 
@@ -58,6 +59,7 @@ export class LocalMarketplaceStore {
     this.notifications.clear();
     this.savedAddresses.clear();
     this.workerLocations.clear();
+    this.userBlocks.clear();
     this.colleges.clear();
     this.collegeMemberships.clear();
     this.currentUserId = null;

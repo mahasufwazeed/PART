@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { CHENNAI_LOCALITIES } from '@part/shared';
-import { User, Globe, MapPin, LogOut } from 'lucide-react';
+import { User, Globe, MapPin, LogOut, Bell } from 'lucide-react';
 
 export const UserAccountBar: React.FC = () => {
   const {
@@ -12,6 +12,8 @@ export const UserAccountBar: React.FC = () => {
     setUserLocation,
     logout,
     currentTab,
+    openNotifications,
+    unreadNotificationsCount,
   } = useAppStore();
 
   // On Home screen, PARTHeader already serves as the top brand bar
@@ -54,6 +56,21 @@ export const UserAccountBar: React.FC = () => {
           </select>
         </div>
 
+        {/* Notification Bell */}
+        <button
+          type="button"
+          onClick={openNotifications}
+          aria-label="View Notifications"
+          className="w-6 h-6 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 flex items-center justify-center relative transition cursor-pointer"
+        >
+          <Bell className="w-3.5 h-3.5" />
+          {unreadNotificationsCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-part-green text-white text-[8px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center ring-1 ring-white shadow-xs">
+              {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+            </span>
+          )}
+        </button>
+
         {/* Language Toggle */}
         <div className="flex items-center bg-neutral-100 rounded-lg p-0.5 border border-neutral-200 text-[10px]">
           <button
@@ -79,3 +96,4 @@ export const UserAccountBar: React.FC = () => {
     </div>
   );
 };
+
