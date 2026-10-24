@@ -78,7 +78,7 @@ export const HomeScreen: React.FC = () => {
         />
       </div>
 
-      <div className="px-4 pt-4 space-y-5">
+      <div className="px-3 sm:px-5 md:px-6 pt-3 sm:pt-4 space-y-4 sm:space-y-5">
         {/* Active Ongoing Task Reminder (if any active gig) */}
         {activeTasks.length > 0 && (
           <div className="bg-gradient-to-r from-emerald-500 to-part-green text-white p-3.5 rounded-2xl shadow-green flex items-center justify-between gap-3 animate-slide-up">
@@ -185,8 +185,8 @@ export const HomeScreen: React.FC = () => {
               onAction={() => setTab('post')}
             />
           ) : (
-            <div className="space-y-3">
-              {tasks.slice(0, 5).map((task) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 space-y-0">
+              {tasks.slice(0, 6).map((task) => (
                 <TaskCard key={task.id} task={task} />
               ))}
             </div>

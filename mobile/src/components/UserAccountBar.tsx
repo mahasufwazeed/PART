@@ -18,12 +18,12 @@ export const UserAccountBar: React.FC = () => {
   if (!currentProfile || currentTab === 'home') return null;
 
   return (
-    <div className="bg-white text-neutral-800 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/80 shadow-xs select-none">
+    <div className="bg-white text-neutral-800 px-3 sm:px-5 md:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/80 shadow-xs select-none">
       <div className="flex items-center gap-2">
         <div className="w-5 h-5 rounded-full bg-brand-yellow text-neutral-950 font-heading font-black text-[10px] flex items-center justify-center">
           {currentProfile.full_name.charAt(0).toUpperCase()}
         </div>
-        <span className="font-heading font-bold text-neutral-900 truncate max-w-[130px]">
+        <span className="font-heading font-bold text-neutral-900 truncate max-w-[140px] sm:max-w-xs md:max-w-md">
           {currentProfile.full_name}
         </span>
       </div>

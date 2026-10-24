@@ -56,7 +56,7 @@ export const ActivityScreen: React.FC = () => {
   return (
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
       {/* Top Header */}
-      <div className="bg-white border-b border-neutral-200/90 shadow-xs px-4 pt-4 pb-3">
+      <div className="bg-white border-b border-neutral-200/90 shadow-xs px-3 sm:px-5 md:px-6 pt-3 sm:pt-4 pb-3">
         <h2 className="font-heading font-black text-xl text-neutral-900 tracking-tight">
           {language === 'ta' ? 'செயல்பாடுகள் & வரலாறு' : 'Activity & History'}
         </h2>
@@ -80,7 +80,7 @@ export const ActivityScreen: React.FC = () => {
                 key={t.key}
                 type="button"
                 onClick={() => setTabState(t.key as any)}
-                className={`flex-1 py-2 rounded-xl text-center transition cursor-pointer ${
+                className={`flex-1 py-1.5 sm:py-2 rounded-xl text-center transition cursor-pointer text-[11px] sm:text-xs ${
                   isActive
                     ? 'bg-part-green text-white shadow-xs font-black'
                     : 'text-neutral-500 hover:text-neutral-900 font-semibold'
@@ -93,7 +93,7 @@ export const ActivityScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 pt-4 max-w-md mx-auto space-y-3">
+      <div className="px-3 sm:px-5 md:px-6 pt-3 sm:pt-4 w-full">
         {/* Tab 1: Posted Tasks */}
         {tab === 'posted' && (
           postedTasks.length === 0 ? (
@@ -104,7 +104,9 @@ export const ActivityScreen: React.FC = () => {
               onAction={() => setTab('post')}
             />
           ) : (
-            postedTasks.map((t) => <TaskCard key={t.id} task={t} />)
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {postedTasks.map((t) => <TaskCard key={t.id} task={t} />)}
+            </div>
           )
         )}
 
@@ -118,26 +120,28 @@ export const ActivityScreen: React.FC = () => {
               onAction={() => setTab('explore')}
             />
           ) : (
-            applications.map((app) => (
-              <div
-                key={app.id}
-                onClick={() => app.task && openTaskDetails(app.task.id)}
-                className="bg-white p-4 rounded-3xl border border-neutral-200/90 shadow-quick flex items-center justify-between cursor-pointer hover:border-part-green transition select-none"
-              >
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-2 py-0.5 rounded-full">
-                    Application {app.status}
-                  </span>
-                  <h4 className="font-heading font-black text-xs text-neutral-900 line-clamp-1">
-                    {app.task?.title || 'Neighborhood Task'}
-                  </h4>
-                  <p className="text-[11px] text-neutral-500">
-                    Budget: ₹{app.task?.budget_inr} • Applied on {new Date(app.created_at).toLocaleDateString()}
-                  </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {applications.map((app) => (
+                <div
+                  key={app.id}
+                  onClick={() => app.task && openTaskDetails(app.task.id)}
+                  className="bg-white p-3 sm:p-4 rounded-2xl border border-neutral-200/90 shadow-quick flex items-center justify-between cursor-pointer hover:border-part-green transition select-none"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-2 py-0.5 rounded-full">
+                      Application {app.status}
+                    </span>
+                    <h4 className="font-heading font-black text-xs text-neutral-900 line-clamp-1">
+                      {app.task?.title || 'Neighborhood Task'}
+                    </h4>
+                    <p className="text-[11px] text-neutral-500">
+                      Budget: ₹{app.task?.budget_inr} • Applied on {new Date(app.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-neutral-400 shrink-0 ml-2" />
                 </div>
-                <ChevronRight className="w-4 h-4 text-neutral-400" />
-              </div>
-            ))
+              ))}
+            </div>
           )
         )}
 
@@ -149,19 +153,21 @@ export const ActivityScreen: React.FC = () => {
               subtitle="Accepted jobs or assigned tasks will show here with real-time chat."
             />
           ) : (
-            ongoingTasks.map((t) => (
-              <div key={t.id} className="space-y-2">
-                <TaskCard task={t} />
-                <button
-                  type="button"
-                  onClick={() => openChat(t.id)}
-                  className="w-full py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white font-heading font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-brand-yellow" />
-                  <span>Open Active Task Chat</span>
-                </button>
-              </div>
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {ongoingTasks.map((t) => (
+                <div key={t.id} className="space-y-2">
+                  <TaskCard task={t} />
+                  <button
+                    type="button"
+                    onClick={() => openChat(t.id)}
+                    className="w-full py-2 bg-neutral-900 hover:bg-neutral-800 text-white font-heading font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-brand-yellow" />
+                    <span>Open Active Task Chat</span>
+                  </button>
+                </div>
+              ))}
+            </div>
           )
         )}
 
@@ -173,7 +179,9 @@ export const ActivityScreen: React.FC = () => {
               subtitle="Gigs you complete and approve will be archived here along with receipts."
             />
           ) : (
-            completedTasks.map((t) => <TaskCard key={t.id} task={t} />)
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {completedTasks.map((t) => <TaskCard key={t.id} task={t} />)}
+            </div>
           )
         )}
       </div>

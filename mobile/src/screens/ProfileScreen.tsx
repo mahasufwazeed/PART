@@ -391,395 +391,404 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   };
 
   return (
-    <div className="pb-28 px-4 pt-4 max-w-md mx-auto space-y-4 select-none">
+    <div className="pb-24 md:pb-18 px-3 sm:px-5 md:px-6 pt-3 sm:pt-4 w-full select-none">
       {statusMessage && (
-        <div className="bg-emerald-50 border border-emerald-200 text-part-green text-xs p-3 rounded-2xl flex items-center gap-2 animate-slide-up shadow-xs">
+        <div className="mb-3 bg-emerald-50 border border-emerald-200 text-part-green text-xs p-2.5 rounded-2xl flex items-center gap-2 animate-slide-up shadow-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{statusMessage}</span>
         </div>
       )}
 
-      {/* 1. Header Card (Photo with Upload Trigger, Name, Email, Phone, Bio, Skills, UPI, Location) */}
-      <div className="bg-white p-5 rounded-3xl border border-neutral-200/90 shadow-card relative overflow-hidden space-y-3.5">
-        <div className="flex items-start gap-3.5">
-          {/* Avatar with Upload / Edit Button */}
-          <div className="relative group shrink-0">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
-              {currentProfile.avatar_url && !avatarImgError ? (
-                <img
-                  src={currentProfile.avatar_url}
-                  alt={currentProfile.full_name}
-                  onError={() => setAvatarImgError(true)}
-                  className="w-full h-full object-cover"
+      {/* Responsive Grid: Stacks on mobile, 2 clean columns on tablet and laptop */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 items-start">
+        {/* Left Column (Identity, Dual Role, Earnings) */}
+        <div className="md:col-span-5 lg:col-span-5 space-y-3">
+          {/* 1. Header Card (Photo with Upload Trigger, Name, Email, Phone, Bio, Skills, UPI, Location) */}
+          <div className="bg-white p-3.5 sm:p-4 md:p-4.5 rounded-3xl border border-neutral-200/90 shadow-card relative overflow-hidden space-y-3">
+            <div className="flex items-start gap-3">
+              {/* Avatar with Upload / Edit Button */}
+              <div className="relative group shrink-0">
+                <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-xl sm:text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
+                  {currentProfile.avatar_url && !avatarImgError ? (
+                    <img
+                      src={currentProfile.avatar_url}
+                      alt={currentProfile.full_name}
+                      onError={() => setAvatarImgError(true)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <span className="font-heading font-black text-lg sm:text-xl text-neutral-950 tracking-wider">
+                      {getInitials(currentProfile.full_name)}
+                    </span>
+                  )}
+                </div>
+
+                {/* Camera Overlay Trigger */}
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  title="Change Profile Photo or Pick Avatar"
+                  className="absolute -bottom-1 -right-1 w-5.5 h-5.5 sm:w-6 sm:h-6 rounded-full bg-part-green text-white flex items-center justify-center shadow-md border-2 border-white hover:scale-110 active:scale-95 transition cursor-pointer"
+                >
+                  <Camera className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
                 />
-              ) : (
-                <span className="font-heading font-black text-xl text-neutral-950 tracking-wider">
-                  {getInitials(currentProfile.full_name)}
-                </span>
-              )}
-            </div>
-
-            {/* Camera Overlay Trigger */}
-            <button
-              type="button"
-              onClick={handleOpenEditModal}
-              title="Change Profile Photo or Pick Avatar"
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-part-green text-white flex items-center justify-center shadow-md border-2 border-white hover:scale-110 active:scale-95 transition cursor-pointer"
-            >
-              <Camera className="w-3 h-3" />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-1.5">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <h2 className="font-heading font-black text-base text-neutral-900 truncate">
-                  {currentProfile.full_name}
-                </h2>
-                {currentProfile.verification_status === 'verified' ? (
-                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-full border border-part-green/20 shrink-0">
-                    <ShieldCheck className="w-3 h-3 fill-part-green text-white" />
-                    <span>Verified</span>
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.2 rounded-full shrink-0">
-                    Unverified
-                  </span>
-                )}
               </div>
 
-              {/* Edit Profile Button */}
-              <button
-                type="button"
-                id="btn-edit-profile-header"
-                onClick={handleOpenEditModal}
-                className="px-2.5 py-1 rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 text-[11px] font-heading font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition shrink-0"
-                title="Edit Profile & All Details"
-              >
-                <Pencil className="w-3 h-3 text-brand-yellow" />
-                <span>Edit</span>
-              </button>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1.5">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <h2 className="font-heading font-black text-sm sm:text-base text-neutral-900 truncate">
+                      {currentProfile.full_name}
+                    </h2>
+                    {currentProfile.verification_status === 'verified' ? (
+                      <span className="flex items-center gap-0.5 text-[9.5px] sm:text-[10px] font-bold text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-full border border-part-green/20 shrink-0">
+                        <ShieldCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3 fill-part-green text-white" />
+                        <span>Verified</span>
+                      </span>
+                    ) : (
+                      <span className="text-[9.5px] sm:text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.2 rounded-full shrink-0">
+                        Unverified
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Edit Profile Button */}
+                  <button
+                    type="button"
+                    id="btn-edit-profile-header"
+                    onClick={handleOpenEditModal}
+                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 text-[10px] sm:text-[11px] font-heading font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition shrink-0"
+                    title="Edit Profile & All Details"
+                  >
+                    <Pencil className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-brand-yellow" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+
+                {/* Verified Email */}
+                {currentProfile.email && (
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500 font-medium truncate flex items-center gap-1 mt-0.5">
+                    <Mail className="w-3 h-3 text-neutral-400 shrink-0" />
+                    <span className="truncate">{currentProfile.email}</span>
+                  </p>
+                )}
+
+                {/* Phone Number */}
+                <div className="text-[10.5px] sm:text-[11px] text-neutral-600 font-medium truncate flex items-center gap-1 mt-0.5">
+                  <Phone className="w-3 h-3 text-neutral-400 shrink-0" />
+                  {currentProfile.phone ? (
+                    <span className="font-mono">{currentProfile.phone}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleOpenEditModal}
+                      className="text-part-green font-semibold hover:underline cursor-pointer"
+                    >
+                      + Add mobile number
+                    </button>
+                  )}
+                </div>
+
+                {/* Location & Change Button */}
+                <div className="flex items-center justify-between gap-1 mt-0.5 text-xs">
+                  <span className="text-[10.5px] sm:text-[11px] text-neutral-600 font-semibold truncate flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-part-green shrink-0" />
+                    <span className="truncate">
+                      {currentProfile.general_location || userLocation.locality || 'Velachery, Chennai'}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowLocationModal(true)}
+                    className="text-[10px] font-heading font-bold text-part-green hover:underline shrink-0 cursor-pointer"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
             </div>
 
-            {/* Verified Email */}
-            {currentProfile.email && (
-              <p className="text-[11px] text-neutral-500 font-medium truncate flex items-center gap-1 mt-0.5">
-                <Mail className="w-3 h-3 text-neutral-400 shrink-0" />
-                <span className="truncate">{currentProfile.email}</span>
-              </p>
+            {/* Bio (if present) */}
+            {currentProfile.bio && (
+              <div className="bg-neutral-50 px-2.5 py-1.5 rounded-xl border border-neutral-100 text-[10.5px] sm:text-[11px] text-neutral-700 italic">
+                "{currentProfile.bio}"
+              </div>
             )}
 
-            {/* Phone Number */}
-            <div className="text-[11px] text-neutral-600 font-medium truncate flex items-center gap-1 mt-0.5">
-              <Phone className="w-3 h-3 text-neutral-400 shrink-0" />
-              {currentProfile.phone ? (
-                <span className="font-mono">{currentProfile.phone}</span>
+            {/* Skills Chips (if present) */}
+            {currentProfile.skills && currentProfile.skills.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-0.5">
+                {currentProfile.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="text-[9.5px] sm:text-[10px] font-semibold bg-neutral-100 text-neutral-700 px-2 py-0.5 rounded-lg border border-neutral-200/60"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* UPI & Availability Status Row */}
+            <div className="flex items-center justify-between text-[10.5px] sm:text-[11px] pt-1 border-t border-neutral-100">
+              <div className="flex items-center gap-2">
+                {currentProfile.is_worker_available ? (
+                  <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-bold text-part-green bg-part-green-mint/80 px-2 py-0.5 rounded-full border border-part-green/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-part-green animate-pulse" />
+                    Available for Gigs
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                    Off-Duty
+                  </span>
+                )}
+                <span className="text-[9.5px] sm:text-[10px] text-neutral-400 uppercase font-bold">
+                  {currentProfile.preferred_language === 'ta' ? 'தமிழ்' : 'English'}
+                </span>
+              </div>
+
+              {currentProfile.upi_id ? (
+                <span className="text-[9.5px] sm:text-[10px] text-neutral-500 font-mono flex items-center gap-1">
+                  <QrCode className="w-3 h-3 text-part-green" />
+                  <span>{currentProfile.upi_id}</span>
+                </span>
               ) : (
                 <button
                   type="button"
                   onClick={handleOpenEditModal}
-                  className="text-part-green font-semibold hover:underline cursor-pointer"
+                  className="text-[9.5px] sm:text-[10px] text-neutral-400 hover:text-part-green underline"
                 >
-                  + Add mobile number
+                  + Add UPI handle
                 </button>
               )}
             </div>
 
-            {/* Location & Change Button */}
-            <div className="flex items-center justify-between gap-1 mt-0.5 text-xs">
-              <span className="text-[11px] text-neutral-600 font-semibold truncate flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-part-green shrink-0" />
-                <span className="truncate">
-                  {currentProfile.general_location || userLocation.locality || 'Velachery, Chennai'}
+            {/* 2. DUAL ROLE SWITCHER (Task Poster vs Task Worker) */}
+            <div className="pt-2 border-t border-neutral-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9.5px] font-heading font-black text-neutral-400 uppercase tracking-wider">
+                  Current Activity Mode:
                 </span>
+                <span className="text-[9.5px] font-bold text-neutral-500">
+                  One account for both
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => handleToggleRole('poster')}
+                  className={`py-1.5 sm:py-2 px-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    activeRole === 'poster'
+                      ? 'bg-brand-yellow text-neutral-950 shadow-xs font-heading font-black'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="truncate">Need Help (Poster)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleRole('worker')}
+                  className={`py-1.5 sm:py-2 px-2.5 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    activeRole === 'worker'
+                      ? 'bg-part-green text-white shadow-xs font-heading font-black'
+                      : 'text-neutral-600 hover:text-neutral-900'
+                  }`}
+                >
+                  <Briefcase className="w-3.5 h-3.5" />
+                  <span className="truncate">Want to Earn (Helper)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Primary Earnings Highlight Card */}
+          <div
+            id="btn-profile-earnings"
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowEarningsModal(true)}
+            className="bg-gradient-to-r from-part-green to-part-green-forest text-white p-3.5 sm:p-4 rounded-3xl shadow-green cursor-pointer hover:shadow-lg transition-transform active:scale-[0.99] flex items-center justify-between"
+          >
+            <div className="space-y-0.5">
+              <span className="text-[9.5px] font-black uppercase tracking-wider text-part-green-mint block">
+                MY EARNINGS & SETTLEMENTS
               </span>
-              <button
-                type="button"
-                onClick={() => setShowLocationModal(true)}
-                className="text-[10px] font-heading font-bold text-part-green hover:underline shrink-0 cursor-pointer"
-              >
-                Change
-              </button>
+              <div className="flex items-baseline gap-1">
+                <span className="font-heading font-black text-xl sm:text-2xl">
+                  ₹{earnings?.totalEarnedInr || 0}
+                </span>
+                <span className="text-xs text-emerald-100 font-medium">settled</span>
+              </div>
+              <span className="text-[10.5px] sm:text-[11px] text-emerald-100 block">
+                {earnings?.completedTasksCount || 0} gigs completed • Tap to view ledger
+              </span>
+            </div>
+
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+              <Wallet className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white" />
             </div>
           </div>
         </div>
 
-        {/* Bio (if present) */}
-        {currentProfile.bio && (
-          <div className="bg-neutral-50 px-3 py-2 rounded-2xl border border-neutral-100 text-[11px] text-neutral-700 italic">
-            "{currentProfile.bio}"
-          </div>
-        )}
-
-        {/* Skills Chips (if present) */}
-        {currentProfile.skills && currentProfile.skills.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-0.5">
-            {currentProfile.skills.map((skill) => (
-              <span
-                key={skill}
-                className="text-[10px] font-semibold bg-neutral-100 text-neutral-700 px-2 py-0.5 rounded-lg border border-neutral-200/60"
-              >
-                {skill}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* UPI & Availability Status Row */}
-        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-neutral-100">
-          <div className="flex items-center gap-2">
-            {currentProfile.is_worker_available ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-part-green bg-part-green-mint/80 px-2 py-0.5 rounded-full border border-part-green/20">
-                <span className="w-1.5 h-1.5 rounded-full bg-part-green animate-pulse" />
-                Available for Gigs
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
-                Off-Duty
-              </span>
-            )}
-            <span className="text-[10px] text-neutral-400 uppercase font-bold">
-              {currentProfile.preferred_language === 'ta' ? 'தமிழ்' : 'English'}
-            </span>
+        {/* Right Column on Tablet/Laptop (Saved Addresses & Navigation Menu) */}
+        <div className="md:col-span-7 lg:col-span-7 space-y-3">
+          {/* 4. Saved Addresses Quick Tile */}
+          <div
+            id="btn-profile-saved-addresses"
+            role="button"
+            tabIndex={0}
+            onClick={() => setShowSavedAddressesModal(true)}
+            className="bg-white p-3 sm:p-3.5 rounded-3xl border border-neutral-200/90 shadow-card flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer active:scale-[0.99]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <Bookmark className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-heading font-bold text-xs text-neutral-900">
+                  Saved Addresses ({savedAddresses.length})
+                </h4>
+                <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
+                  Manage Home, Work, and neighborhood drop-offs
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-neutral-400" />
           </div>
 
-          {currentProfile.upi_id ? (
-            <span className="text-[10px] text-neutral-500 font-mono flex items-center gap-1">
-              <QrCode className="w-3 h-3 text-part-green" />
-              <span>{currentProfile.upi_id}</span>
-            </span>
-          ) : (
+          {/* 5. Account Navigation Menu */}
+          <div className="bg-white rounded-3xl border border-neutral-200/90 shadow-card divide-y divide-neutral-100 overflow-hidden text-xs">
+            {/* Edit Profile & Details */}
             <button
+              id="btn-profile-edit"
               type="button"
               onClick={handleOpenEditModal}
-              className="text-[10px] text-neutral-400 hover:text-part-green underline"
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
             >
-              + Add UPI handle
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-brand-yellow/30 text-neutral-900 flex items-center justify-center shrink-0">
+                  <Pencil className="w-3.5 h-3.5 text-neutral-900" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold text-neutral-900">Edit Profile & Details</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
+                    Name, mobile, bio, avatar, skills & UPI handle
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
             </button>
-          )}
-        </div>
 
-        {/* 2. DUAL ROLE SWITCHER (Task Poster vs Task Worker) */}
-        <div className="pt-2 border-t border-neutral-100">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-heading font-black text-neutral-400 uppercase tracking-wider">
-              Current Activity Mode:
-            </span>
-            <span className="text-[10px] font-bold text-neutral-500">
-              One account for both activities
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs font-bold">
+            {/* My Tasks & Gigs */}
             <button
+              id="btn-profile-my-tasks"
               type="button"
-              onClick={() => handleToggleRole('poster')}
-              className={`py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeRole === 'poster'
-                  ? 'bg-brand-yellow text-neutral-950 shadow-xs font-heading font-black'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+              onClick={() => setTab('activity')}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>I Need Help (Poster)</span>
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-part-green-mint text-part-green flex items-center justify-center shrink-0">
+                  <Briefcase className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold text-neutral-900">My Tasks & Gigs</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
+                    {activeRole === 'poster' ? 'Tasks you have posted' : 'Gigs you have accepted'}
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
             </button>
+
+            {/* Reviews & Ratings */}
             <button
+              id="btn-profile-reviews"
               type="button"
-              onClick={() => handleToggleRole('worker')}
-              className={`py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
-                activeRole === 'worker'
-                  ? 'bg-part-green text-white shadow-xs font-heading font-black'
-                  : 'text-neutral-600 hover:text-neutral-900'
-              }`}
+              onClick={() => setShowReviewsModal(true)}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
             >
-              <Briefcase className="w-3.5 h-3.5" />
-              <span>I Want to Earn (Helper)</span>
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Star className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold text-neutral-900">My Reviews & Rating</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">
+                    ★ {currentProfile.rating_as_worker.toFixed(1)} Helper • ★ {currentProfile.rating_as_requester.toFixed(1)} Poster
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
+            </button>
+
+            {/* Security / Password Reset */}
+            <button
+              id="btn-profile-security"
+              type="button"
+              onClick={() => setShowSecurityModal(true)}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-neutral-100 text-neutral-700 flex items-center justify-center shrink-0">
+                  <Lock className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold text-neutral-900">Security & Password</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">Update account password</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
+            </button>
+
+            {/* Help & Support */}
+            <button
+              id="btn-profile-help"
+              type="button"
+              onClick={() => setShowHelpModal(true)}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold text-neutral-900">Help & Support</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-neutral-500">Chennai support hotline & FAQs</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-neutral-400" />
+            </button>
+
+            {/* Logout */}
+            <button
+              id="btn-profile-logout"
+              type="button"
+              onClick={() => setShowLogoutModal(true)}
+              className="w-full p-3 sm:p-3.5 flex items-center justify-between hover:bg-rose-50/50 transition cursor-pointer text-rose-600"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                  <LogOut className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-heading font-bold">Log Out</h4>
+                  <p className="text-[10.5px] sm:text-[11px] text-rose-500/80">Sign out from this device</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-rose-400" />
             </button>
           </div>
         </div>
-      </div>
-
-      {/* 3. Primary Earnings Highlight Card */}
-      <div
-        id="btn-profile-earnings"
-        role="button"
-        tabIndex={0}
-        onClick={() => setShowEarningsModal(true)}
-        className="bg-gradient-to-r from-part-green to-part-green-forest text-white p-4 rounded-3xl shadow-green cursor-pointer hover:shadow-lg transition-transform active:scale-[0.99] flex items-center justify-between"
-      >
-        <div className="space-y-0.5">
-          <span className="text-[10px] font-black uppercase tracking-wider text-part-green-mint block">
-            MY EARNINGS & SETTLEMENTS
-          </span>
-          <div className="flex items-baseline gap-1">
-            <span className="font-heading font-black text-2xl">
-              ₹{earnings?.totalEarnedInr || 0}
-            </span>
-            <span className="text-xs text-emerald-100 font-medium">settled</span>
-          </div>
-          <span className="text-[11px] text-emerald-100 block">
-            {earnings?.completedTasksCount || 0} gigs completed • Tap to view ledger
-          </span>
-        </div>
-
-        <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center">
-          <Wallet className="w-5 h-5 text-white" />
-        </div>
-      </div>
-
-      {/* 4. Saved Addresses Quick Tile */}
-      <div
-        id="btn-profile-saved-addresses"
-        role="button"
-        tabIndex={0}
-        onClick={() => setShowSavedAddressesModal(true)}
-        className="bg-white p-4 rounded-3xl border border-neutral-200/90 shadow-card flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer active:scale-[0.99]"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
-            <Bookmark className="w-4 h-4" />
-          </div>
-          <div>
-            <h4 className="font-heading font-bold text-xs text-neutral-900">
-              Saved Addresses ({savedAddresses.length})
-            </h4>
-            <p className="text-[11px] text-neutral-500">
-              Manage Home, Work, and neighborhood drop-offs
-            </p>
-          </div>
-        </div>
-        <ChevronRight className="w-4 h-4 text-neutral-400" />
-      </div>
-
-      {/* 5. Account Navigation Menu */}
-      <div className="bg-white rounded-3xl border border-neutral-200/90 shadow-card divide-y divide-neutral-100 overflow-hidden text-xs">
-        {/* Edit Profile & Details */}
-        <button
-          id="btn-profile-edit"
-          type="button"
-          onClick={handleOpenEditModal}
-          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-brand-yellow/30 text-neutral-900 flex items-center justify-center">
-              <Pencil className="w-4 h-4 text-neutral-900" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold text-neutral-900">Edit Profile & Details</h4>
-              <p className="text-[11px] text-neutral-500">
-                Name, mobile, bio, avatar, skills & UPI handle
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-neutral-400" />
-        </button>
-
-        {/* My Tasks & Gigs */}
-        <button
-          id="btn-profile-my-tasks"
-          type="button"
-          onClick={() => setTab('activity')}
-          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-part-green-mint text-part-green flex items-center justify-center">
-              <Briefcase className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold text-neutral-900">My Tasks & Gigs</h4>
-              <p className="text-[11px] text-neutral-500">
-                {activeRole === 'poster' ? 'Tasks you have posted' : 'Gigs you have accepted'}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-neutral-400" />
-        </button>
-
-        {/* Reviews & Ratings */}
-        <button
-          id="btn-profile-reviews"
-          type="button"
-          onClick={() => setShowReviewsModal(true)}
-          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
-              <Star className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold text-neutral-900">My Reviews & Rating</h4>
-              <p className="text-[11px] text-neutral-500">
-                ★ {currentProfile.rating_as_worker.toFixed(1)} Helper • ★ {currentProfile.rating_as_requester.toFixed(1)} Poster
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-neutral-400" />
-        </button>
-
-        {/* Security / Password Reset */}
-        <button
-          id="btn-profile-security"
-          type="button"
-          onClick={() => setShowSecurityModal(true)}
-          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-neutral-100 text-neutral-700 flex items-center justify-center">
-              <Lock className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold text-neutral-900">Security & Password</h4>
-              <p className="text-[11px] text-neutral-500">Update account password</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-neutral-400" />
-        </button>
-
-        {/* Help & Support */}
-        <button
-          id="btn-profile-help"
-          type="button"
-          onClick={() => setShowHelpModal(true)}
-          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center">
-              <HelpCircle className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold text-neutral-900">Help & Support</h4>
-              <p className="text-[11px] text-neutral-500">Chennai support hotline & FAQs</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-neutral-400" />
-        </button>
-
-        {/* Logout */}
-        <button
-          id="btn-profile-logout"
-          type="button"
-          onClick={() => setShowLogoutModal(true)}
-          className="w-full p-4 flex items-center justify-between hover:bg-rose-50/50 transition cursor-pointer text-rose-600"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <LogOut className="w-4 h-4" />
-            </div>
-            <div className="text-left">
-              <h4 className="font-heading font-bold">Log Out</h4>
-              <p className="text-[11px] text-rose-500/80">Sign out from this device</p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-rose-400" />
-        </button>
       </div>
 
       {/* ============================================================== */}
@@ -787,7 +796,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showSavedAddressesModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
             <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <div>
                 <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
@@ -966,7 +975,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showReviewsModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
             <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <div>
                 <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
@@ -1085,7 +1094,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showSecurityModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
             <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <div>
                 <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
@@ -1210,7 +1219,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showHelpModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
             <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <div>
                 <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
@@ -1336,7 +1345,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showEarningsModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[85vh] flex flex-col">
             <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
               <div>
                 <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
@@ -1489,19 +1498,19 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       {/* ============================================================== */}
       {showEditProfileModal && (
         <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+          <div className="bg-white w-full max-w-lg md:max-w-2xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[92vh] sm:max-h-[85vh] flex flex-col">
             {/* Modal Header */}
-            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-brand-yellow flex items-center justify-center text-neutral-950 font-bold shadow-xs">
-                  <Pencil className="w-4 h-4" />
+            <div className="px-4 sm:px-5 pt-3.5 pb-2.5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-brand-yellow flex items-center justify-center text-neutral-950 font-bold shadow-xs shrink-0">
+                  <Pencil className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </div>
                 <div>
-                  <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                  <h3 className="font-heading font-black text-sm sm:text-base text-neutral-900 tracking-tight">
                     Edit Profile Details
                   </h3>
-                  <p className="text-[11px] text-neutral-500">
-                    Update your identity, contact info, bio, avatar & skills
+                  <p className="text-[10px] sm:text-[11px] text-neutral-500">
+                    Update identity, contact info, bio, avatar, skills & UPI
                   </p>
                 </div>
               </div>
@@ -1509,32 +1518,32 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 type="button"
                 id="btn-close-edit-profile"
                 onClick={() => setShowEditProfileModal(false)}
-                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+                className="w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Scrollable Form Body */}
-            <form onSubmit={handleSaveProfile} className="overflow-y-auto p-5 space-y-5 flex-1">
+            <form onSubmit={handleSaveProfile} className="overflow-y-auto p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 flex-1">
               {editProfileError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs">
+                <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{editProfileError}</span>
                 </div>
               )}
 
               {/* 1. Avatar Chooser & Upload */}
-              <div className="space-y-2.5">
+              <div className="space-y-2">
                 <label className="text-xs font-heading font-bold text-neutral-800 flex items-center justify-between">
                   <span>Profile Photo & Avatar</span>
-                  <span className="text-[11px] text-neutral-400 font-normal">Pick or upload photo</span>
+                  <span className="text-[10px] sm:text-[11px] text-neutral-400 font-normal">Pick or upload photo</span>
                 </label>
 
-                <div className="flex items-center gap-4 bg-neutral-50 p-3.5 rounded-2xl border border-neutral-200/80">
+                <div className="flex items-center gap-3 bg-neutral-50 p-2.5 sm:p-3 rounded-2xl border border-neutral-200/80">
                   {/* Big Preview */}
                   <div className="relative shrink-0">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
+                    <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
                       {editAvatarUrl ? (
                         <img
                           src={editAvatarUrl}
@@ -1546,46 +1555,46 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <span className="font-heading font-black text-xl text-neutral-950">
+                        <span className="font-heading font-black text-lg text-neutral-950">
                           {getInitials(editFullName || currentProfile.full_name)}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex-1 space-y-1.5">
+                  <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploadingAvatar}
-                        className="px-3 py-1.5 bg-white border border-neutral-300 hover:bg-neutral-100 rounded-xl text-xs font-heading font-bold text-neutral-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                        className="px-2.5 py-1 bg-white border border-neutral-300 hover:bg-neutral-100 rounded-xl text-[11px] sm:text-xs font-heading font-bold text-neutral-800 flex items-center gap-1 shadow-xs cursor-pointer"
                       >
-                        <Camera className="w-3.5 h-3.5 text-part-green" />
+                        <Camera className="w-3 h-3 text-part-green" />
                         <span>{isUploadingAvatar ? 'Uploading...' : 'Upload Photo'}</span>
                       </button>
                       {editAvatarUrl && (
                         <button
                           type="button"
                           onClick={() => setEditAvatarUrl('')}
-                          className="text-[11px] text-neutral-500 hover:text-rose-600 font-medium underline cursor-pointer"
+                          className="text-[10.5px] text-neutral-500 hover:text-rose-600 font-medium underline cursor-pointer"
                         >
                           Use Initials
                         </button>
                       )}
                     </div>
-                    <p className="text-[10px] text-neutral-500">
+                    <p className="text-[9.5px] sm:text-[10px] text-neutral-500">
                       JPG, PNG, WebP up to 3MB. Or pick a preset below.
                     </p>
                   </div>
                 </div>
 
                 {/* Preset Avatars Chips */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-heading font-bold text-neutral-500 uppercase tracking-wider block">
+                <div className="space-y-1">
+                  <span className="text-[9.5px] font-heading font-bold text-neutral-500 uppercase tracking-wider block">
                     Curated Avatars
                   </span>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
                     {PRESET_AVATARS.map((preset) => {
                       const isSelected =
                         (preset.id === 'initials' && !editAvatarUrl) ||
@@ -1596,14 +1605,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                           key={preset.id}
                           type="button"
                           onClick={() => setEditAvatarUrl(preset.url)}
-                          className={`p-2 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                          className={`p-1.5 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
                             isSelected
                               ? 'bg-amber-50 border-brand-yellow ring-2 ring-brand-yellow/30'
                               : 'bg-white border-neutral-200 hover:border-neutral-300'
                           }`}
                         >
-                          <span className="text-xl">{preset.emoji}</span>
-                          <span className="text-[10px] font-bold text-neutral-800 truncate w-full">
+                          <span className="text-base sm:text-lg">{preset.emoji}</span>
+                          <span className="text-[9.5px] font-bold text-neutral-800 truncate w-full">
                             {preset.label}
                           </span>
                         </button>
@@ -1613,85 +1622,87 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </div>
               </div>
 
-              {/* 2. Personal Information */}
-              <div className="space-y-3 pt-2 border-t border-neutral-100">
+              {/* 2. Personal Information (2 columns on tablet/laptop) */}
+              <div className="space-y-2.5 pt-2 border-t border-neutral-100">
                 <span className="text-xs font-heading font-black text-neutral-900 uppercase tracking-wider block">
                   Personal Information
                 </span>
 
-                {/* Full Name */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
-                    <span>Full Name *</span>
-                    <span className="text-[10px] text-neutral-400">Shown to task posters & helpers</span>
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      value={editFullName}
-                      onChange={(e) => setEditFullName(e.target.value)}
-                      placeholder="e.g. Mahasuf Wazeed"
-                      className="w-full pl-10 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Mobile Phone Number */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
-                    <span>Mobile Phone Number</span>
-                    <span className="text-[10px] text-emerald-600 font-semibold">For task alerts & contact</span>
-                  </label>
-                  <div className="relative flex items-center">
-                    <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-neutral-700 border-r border-neutral-200 pr-2">
-                      <span>🇮🇳</span>
-                      <span>+91</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Full Name */}
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                      <span>Full Name *</span>
+                      <span className="text-[9.5px] text-neutral-400">Public name</span>
+                    </label>
+                    <div className="relative">
+                      <User className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={editFullName}
+                        onChange={(e) => setEditFullName(e.target.value)}
+                        placeholder="e.g. Mahasuf Wazeed"
+                        className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white"
+                      />
                     </div>
-                    <input
-                      type="tel"
-                      value={editPhone}
-                      onChange={(e) => setEditPhone(e.target.value)}
-                      placeholder="98401 23456"
-                      maxLength={14}
-                      className="w-full pl-20 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
-                    />
+                  </div>
+
+                  {/* Mobile Phone Number */}
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                      <span>Mobile Phone</span>
+                      <span className="text-[9.5px] text-emerald-600 font-semibold">For OTP & alerts</span>
+                    </label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-2.5 flex items-center gap-1 text-[11px] font-bold text-neutral-700 border-r border-neutral-200 pr-1.5">
+                        <span>🇮🇳</span>
+                        <span>+91</span>
+                      </div>
+                      <input
+                        type="tel"
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        placeholder="98401 23456"
+                        maxLength={14}
+                        className="w-full pl-18 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* Email (Verified badge) */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
                     <span>Email Address</span>
-                    <span className="text-[10px] text-part-green font-bold flex items-center gap-0.5">
+                    <span className="text-[9.5px] text-part-green font-bold flex items-center gap-0.5">
                       <ShieldCheck className="w-3 h-3 fill-part-green text-white" />
                       Verified
                     </span>
                   </label>
                   <div className="relative">
-                    <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Mail className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
                       disabled
                       value={currentProfile.email || ''}
-                      className="w-full pl-10 pr-3 py-2.5 bg-neutral-100 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-500 cursor-not-allowed"
+                      className="w-full pl-9 pr-3 py-2 bg-neutral-100 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-500 cursor-not-allowed"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* 3. Locality & App Language */}
-              <div className="space-y-3 pt-2 border-t border-neutral-100">
+              {/* 3. Locality & App Language (2 columns on tablet/laptop) */}
+              <div className="space-y-2.5 pt-2 border-t border-neutral-100">
                 <span className="text-xs font-heading font-black text-neutral-900 uppercase tracking-wider block">
                   Neighborhood & Preferences
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {/* Primary Locality */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-neutral-700 flex items-center gap-1">
-                      <MapPin className="w-3.5 h-3.5 text-part-green" />
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-part-green" />
                       <span>Chennai Locality</span>
                     </label>
                     <select
@@ -1701,7 +1712,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                           : CHENNAI_LOCALITIES[0].name
                       }
                       onChange={(e) => setEditLocality(`${e.target.value}, Chennai`)}
-                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900"
+                      className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900"
                     >
                       {CHENNAI_LOCALITIES.map((loc) => (
                         <option key={loc.name} value={loc.name}>
@@ -1712,16 +1723,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   </div>
 
                   {/* App Language */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-neutral-700 flex items-center gap-1">
-                      <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center gap-1">
+                      <Globe className="w-3 h-3 text-blue-600" />
                       <span>Preferred Language</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs">
+                    <div className="grid grid-cols-2 gap-1 bg-neutral-100 p-0.5 rounded-xl border border-neutral-200 text-xs">
                       <button
                         type="button"
                         onClick={() => setEditLanguage('en')}
-                        className={`py-1.5 rounded-xl font-heading font-bold transition cursor-pointer ${
+                        className={`py-1.5 rounded-lg font-heading font-bold transition cursor-pointer text-xs ${
                           editLanguage === 'en'
                             ? 'bg-white text-neutral-950 shadow-xs'
                             : 'text-neutral-500 hover:text-neutral-900'
@@ -1732,7 +1743,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                       <button
                         type="button"
                         onClick={() => setEditLanguage('ta')}
-                        className={`py-1.5 rounded-xl font-heading font-bold transition cursor-pointer ${
+                        className={`py-1.5 rounded-lg font-heading font-bold transition cursor-pointer text-xs ${
                           editLanguage === 'ta'
                             ? 'bg-part-green text-white shadow-xs'
                             : 'text-neutral-500 hover:text-neutral-900'
@@ -1746,28 +1757,28 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </div>
 
               {/* 4. Bio / Headline */}
-              <div className="space-y-2 pt-2 border-t border-neutral-100">
-                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+              <div className="space-y-1 pt-1.5 border-t border-neutral-100">
+                <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
                   <span>About You / Bio</span>
-                  <span className="text-[10px] text-neutral-400">Max 300 chars</span>
+                  <span className="text-[9.5px] text-neutral-400">Max 300 chars</span>
                 </label>
                 <textarea
                   rows={2}
                   maxLength={300}
                   value={editBio}
                   onChange={(e) => setEditBio(e.target.value)}
-                  placeholder="e.g. Reliable helper in South Chennai. Experienced in electrical repairs, fast grocery delivery & assembling furniture."
-                  className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white resize-none"
+                  placeholder="e.g. Reliable helper in South Chennai. Experienced in electrical repairs, fast delivery & furniture assembly."
+                  className="w-full px-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white resize-none"
                 />
               </div>
 
               {/* 5. Helper Skills & Services */}
-              <div className="space-y-2 pt-2 border-t border-neutral-100">
-                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+              <div className="space-y-1.5 pt-1.5 border-t border-neutral-100">
+                <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
                   <span>Skills & Services (Helper Mode)</span>
-                  <span className="text-[10px] text-neutral-400">Select what you can help with</span>
+                  <span className="text-[9.5px] text-neutral-400">Select what you can help with</span>
                 </label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {POPULAR_SKILLS.map((skill) => {
                     const isSelected = editSkills.includes(skill);
                     return (
@@ -1781,13 +1792,13 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                             setEditSkills([...editSkills, skill]);
                           }
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-xl font-medium border transition cursor-pointer flex items-center gap-1 ${
+                        className={`text-[11px] px-2 py-0.5 rounded-lg font-medium border transition cursor-pointer flex items-center gap-1 ${
                           isSelected
                             ? 'bg-part-green text-white border-part-green shadow-xs'
                             : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
                         }`}
                       >
-                        {isSelected && <Check className="w-3 h-3" />}
+                        {isSelected && <Check className="w-2.5 h-2.5" />}
                         <span>{skill}</span>
                       </button>
                     );
@@ -1795,58 +1806,60 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 </div>
               </div>
 
-              {/* 6. UPI ID for Payouts */}
-              <div className="space-y-2 pt-2 border-t border-neutral-100">
-                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
-                  <span>UPI ID (For Earnings & Instant Payouts)</span>
-                  <span className="text-[10px] text-neutral-400 font-normal">GPay / PhonePe / Paytm</span>
-                </label>
-                <div className="relative">
-                  <QrCode className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={editUpiId}
-                    onChange={(e) => setEditUpiId(e.target.value)}
-                    placeholder="e.g. mobile@okhdfcbank or user@paytm"
-                    className="w-full pl-10 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
-                  />
-                </div>
-                <p className="text-[10px] text-neutral-400">
-                  Task payments from posters will be transferred directly to this UPI address on gig completion.
-                </p>
-              </div>
+              {/* 6. UPI ID & Worker Availability (2 columns on tablet/laptop) */}
+              <div className="pt-2 border-t border-neutral-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 items-start">
+                  {/* UPI ID */}
+                  <div className="space-y-0.5">
+                    <label className="text-[10.5px] sm:text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                      <span>UPI ID (For Instant Payouts)</span>
+                      <span className="text-[9.5px] text-neutral-400">GPay / Paytm</span>
+                    </label>
+                    <div className="relative">
+                      <QrCode className="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={editUpiId}
+                        onChange={(e) => setEditUpiId(e.target.value)}
+                        placeholder="e.g. mobile@okhdfcbank"
+                        className="w-full pl-9 pr-3 py-2 bg-neutral-50 border border-neutral-200 rounded-xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
+                      />
+                    </div>
+                  </div>
 
-              {/* 7. Worker Availability Toggle */}
-              <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200/80 flex items-center justify-between">
-                <div>
-                  <h5 className="font-heading font-bold text-xs text-neutral-900">
-                    Available for Nearby Gigs
-                  </h5>
-                  <p className="text-[10px] text-neutral-500">
-                    Allow nearby Chennai residents to ping and assign tasks to you
-                  </p>
+                  {/* Worker Availability Toggle */}
+                  <div className="p-2.5 bg-neutral-50 rounded-xl border border-neutral-200/80 flex items-center justify-between sm:mt-4">
+                    <div>
+                      <h5 className="font-heading font-bold text-xs text-neutral-900">
+                        Available for Gigs
+                      </h5>
+                      <p className="text-[9.5px] text-neutral-500">
+                        Accept nearby Chennai tasks
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditIsAvailable(!editIsAvailable)}
+                      className={`w-9 h-5 rounded-full transition-colors relative cursor-pointer ${
+                        editIsAvailable ? 'bg-part-green' : 'bg-neutral-300'
+                      }`}
+                    >
+                      <span
+                        className={`block w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform absolute top-0.5 ${
+                          editIsAvailable ? 'translate-x-4.5' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </button>
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setEditIsAvailable(!editIsAvailable)}
-                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
-                    editIsAvailable ? 'bg-part-green' : 'bg-neutral-300'
-                  }`}
-                >
-                  <span
-                    className={`block w-4 h-4 rounded-full bg-white shadow-md transform transition-transform absolute top-1 ${
-                      editIsAvailable ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
               </div>
 
               {/* Form Action Buttons */}
-              <div className="pt-2 sticky bottom-0 bg-white pb-2 flex items-center gap-2">
+              <div className="pt-2 sticky bottom-0 bg-white pb-1 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setShowEditProfileModal(false)}
-                  className="w-1/3 py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-heading font-bold text-xs rounded-2xl transition cursor-pointer"
+                  className="w-1/3 py-2.5 px-3 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-heading font-bold text-xs rounded-xl transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -1854,16 +1867,16 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                   type="submit"
                   id="btn-save-edit-profile"
                   disabled={isSavingProfile}
-                  className="flex-1 py-3 px-4 bg-brand-yellow hover:bg-brand-yellow-hover text-neutral-950 font-heading font-black text-xs rounded-2xl shadow-yellow transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                  className="flex-1 py-2.5 px-4 bg-brand-yellow hover:bg-brand-yellow-hover text-neutral-950 font-heading font-black text-xs rounded-xl shadow-yellow transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99]"
                 >
                   {isSavingProfile ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
-                      <span>Saving Details...</span>
+                      <div className="w-3.5 h-3.5 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
                     </>
                   ) : (
                     <>
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3.5 h-3.5" />
                       <span>Save Profile Details</span>
                     </>
                   )}

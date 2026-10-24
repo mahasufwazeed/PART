@@ -243,7 +243,7 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
-      <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+      <div className="bg-white w-full max-w-lg md:max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between">
           <div>

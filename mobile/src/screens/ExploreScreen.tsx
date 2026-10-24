@@ -100,7 +100,7 @@ export const ExploreScreen: React.FC = () => {
   return (
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
       {/* Top Sticky Header */}
-      <div className="sticky top-0 z-20 bg-white border-b border-neutral-200/90 shadow-xs px-4 pt-3 pb-2 space-y-2.5">
+      <div className="sticky top-0 z-20 bg-white border-b border-neutral-200/90 shadow-xs px-3 sm:px-6 pt-3 pb-2 space-y-2">
         {/* Row 1: Location Bar & View Switcher */}
         <div className="flex items-center justify-between gap-2">
           <button
@@ -243,7 +243,7 @@ export const ExploreScreen: React.FC = () => {
       </div>
 
       {/* Main Content: List View or Map View */}
-      <div className="px-4 pt-3">
+      <div className="px-3 sm:px-5 md:px-6 pt-3">
         {viewMode === 'map' ? (
           <div className="space-y-3">
             {/* Engine Switcher */}
@@ -302,7 +302,7 @@ export const ExploreScreen: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 space-y-0">
             {isLoading ? (
               <SkeletonLoader count={4} />
             ) : tasks.length === 0 ? (

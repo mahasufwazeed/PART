@@ -203,8 +203,8 @@ export const App: React.FC = () => {
   // Handle Update Password Route: /update-password
   if (currentPath === '/update-password') {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] flex justify-center font-sans">
-        <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
+      <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
+        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
           <UpdatePasswordScreen
             onSuccess={() => navigateTo('/login')}
             onNavigateLogin={() => navigateTo('/login')}
@@ -217,8 +217,8 @@ export const App: React.FC = () => {
   // Handle Signup Route: /signup
   if (currentPath === '/signup') {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] flex justify-center font-sans">
-        <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
+      <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
+        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
           <SignupScreen
             onNavigateLogin={() => navigateTo('/login')}
             onSuccess={() => {
@@ -234,8 +234,8 @@ export const App: React.FC = () => {
   // Handle Login Route: /login (or when unauthenticated on protected routes)
   if (!currentProfile || currentPath === '/login') {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] flex justify-center font-sans">
-        <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
+      <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
+        <div className="w-full max-w-md sm:max-w-lg md:max-w-xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
           <LoginScreen
             returnTo={returnTo || (currentPath !== '/login' ? currentPath : undefined)}
             onNavigateSignup={() => navigateTo('/signup')}
@@ -273,9 +273,9 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#E5E7EB] flex justify-center font-sans">
-      {/* Mobile Device Frame Container */}
-      <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-300/80">
+    <div className="min-h-screen bg-neutral-200/60 md:bg-neutral-200/90 flex justify-center font-sans antialiased">
+      {/* Responsive Compact Frame Container (Mobile / Tablet / Laptop) */}
+      <div className="w-full max-w-md sm:max-w-xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-300/80 transition-[max-width] duration-200">
         {/* Top User Account Bar (shows only on non-home tabs) */}
         <UserAccountBar />
 

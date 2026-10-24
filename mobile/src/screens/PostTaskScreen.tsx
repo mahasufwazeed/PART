@@ -157,7 +157,7 @@ export const PostTaskScreen: React.FC = () => {
 
   if (createdTaskId) {
     return (
-      <div className="pb-28 px-4 pt-12 max-w-md mx-auto text-center space-y-5 animate-fade-in select-none">
+      <div className="pb-28 px-4 pt-12 max-w-md md:max-w-lg mx-auto text-center space-y-5 animate-fade-in select-none">
         <div className="w-20 h-20 bg-part-green-mint text-part-green rounded-full flex items-center justify-center mx-auto shadow-green">
           <CheckCircle2 className="w-10 h-10 stroke-[2.5]" />
         </div>
@@ -220,7 +220,7 @@ export const PostTaskScreen: React.FC = () => {
   return (
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
       {/* Top Header & Progress Bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-neutral-200/90 shadow-xs px-4 pt-3.5 pb-3 space-y-2.5">
+      <div className="sticky top-0 z-20 bg-white border-b border-neutral-200/90 shadow-xs px-3 sm:px-6 pt-3.5 pb-3 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {step > 1 && (
@@ -268,7 +268,7 @@ export const PostTaskScreen: React.FC = () => {
         </div>
       </div>
 
-      <div className="px-4 pt-4 max-w-md mx-auto space-y-4">
+      <div className="px-3 sm:px-6 pt-3 sm:pt-4 max-w-xl md:max-w-2xl mx-auto space-y-4">
         {/* Global Error Banner */}
         {validationErrors.form && (
           <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3 rounded-2xl flex items-center gap-2">
@@ -284,7 +284,7 @@ export const PostTaskScreen: React.FC = () => {
               Choose the service category that matches your neighborhood errand.
             </p>
 
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {TASK_CATEGORIES.map((cat: CategoryDef) => {
                 const isSelected = categoryId === cat.id;
                 return (
