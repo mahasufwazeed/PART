@@ -3,16 +3,27 @@ import { useAppStore } from '../store/useAppStore';
 import { taskService, Task, mockStore } from '@part/shared';
 import { TaskCard } from '../components/TaskCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { Clock, Send, CheckCircle2, ChevronRight } from 'lucide-react';
+import { EmptyState } from '../components/EmptyState';
+import {
+  Clock,
+  Send,
+  CheckCircle2,
+  ChevronRight,
+  MessageSquare,
+  Sparkles,
+} from 'lucide-react';
 
 export const ActivityScreen: React.FC = () => {
-  const { currentProfile, openTaskDetails, language } = useAppStore();
-  const [subTab, setSubTab] = useState<'posted' | 'assigned' | 'applications'>('posted');
+  const { currentProfile, openTaskDetails, openChat, setTab, language } =
+    useAppStore();
+
+  const [tab, setTabState] = useState<'posted' | 'applied' | 'ongoing' | 'completed'>('posted');
   const [postedTasks, setPostedTasks] = useState<Task[]>([]);
   const [assignedTasks, setAssignedTasks] = useState<Task[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!currentProfile) return;
     const load = async () => {
       const posted = await taskService.getMyPostedTasks(currentProfile.id);
       setPostedTasks(posted);
@@ -30,105 +41,139 @@ export const ActivityScreen: React.FC = () => {
     };
 
     load();
-  }, [currentProfile.id]);
+  }, [currentProfile?.id]);
+
+  const ongoingTasks = [
+    ...postedTasks.filter((t) => ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)),
+    ...assignedTasks.filter((t) => ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)),
+  ].filter((t, idx, arr) => arr.findIndex((x) => x.id === t.id) === idx);
+
+  const completedTasks = [
+    ...postedTasks.filter((t) => t.status === 'COMPLETED'),
+    ...assignedTasks.filter((t) => t.status === 'COMPLETED'),
+  ].filter((t, idx, arr) => arr.findIndex((x) => x.id === t.id) === idx);
 
   return (
-    <div className="pb-28 px-4 pt-4 max-w-md mx-auto space-y-4">
-      <div>
-        <h2 className="text-lg font-black text-slate-900">
-          {language === 'ta' ? 'உங்கள் செயல்பாடுகள்' : 'Activity & History'}
+    <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
+      {/* Top Header */}
+      <div className="bg-white border-b border-neutral-200/90 shadow-xs px-4 pt-4 pb-3">
+        <h2 className="font-heading font-black text-xl text-neutral-900 tracking-tight">
+          {language === 'ta' ? 'செயல்பாடுகள் & வரலாறு' : 'Activity & History'}
         </h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-neutral-500 font-medium">
           {language === 'ta'
-            ? 'பதிவு செய்த பணிகள் மற்றும் நீங்கள் செய்யும் பணிகள்.'
-            : 'Track your posted requests and assigned gig work.'}
+            ? 'உங்கள் பணிகள் மற்றும் விண்ணப்பங்களின் நேரடி நிலை'
+            : 'Track your posted requests, applications, and ongoing work'}
         </p>
+
+        {/* 4 Segmented Tabs: Posted | Applied | Ongoing | Completed */}
+        <div className="flex bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs font-heading font-bold mt-3">
+          {[
+            { key: 'posted', label: `Posted (${postedTasks.length})` },
+            { key: 'applied', label: `Applied (${applications.length})` },
+            { key: 'ongoing', label: `Ongoing (${ongoingTasks.length})` },
+            { key: 'completed', label: `Completed (${completedTasks.length})` },
+          ].map((t) => {
+            const isActive = tab === t.key;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTabState(t.key as any)}
+                className={`flex-1 py-2 rounded-xl text-center transition cursor-pointer ${
+                  isActive
+                    ? 'bg-part-green text-white shadow-xs font-black'
+                    : 'text-neutral-500 hover:text-neutral-900 font-semibold'
+                }`}
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Segmented Control */}
-      <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-        <button
-          onClick={() => setSubTab('posted')}
-          className={`flex-1 py-2 rounded-lg transition ${
-            subTab === 'posted'
-              ? 'bg-white text-primary shadow-sm font-extrabold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          {language === 'ta' ? 'பதிவிட்டவை' : 'My Requests'} ({postedTasks.length})
-        </button>
-        <button
-          onClick={() => setSubTab('assigned')}
-          className={`flex-1 py-2 rounded-lg transition ${
-            subTab === 'assigned'
-              ? 'bg-white text-primary shadow-sm font-extrabold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          {language === 'ta' ? 'செயல் பணிகள்' : 'My Work'} ({assignedTasks.length})
-        </button>
-        <button
-          onClick={() => setSubTab('applications')}
-          className={`flex-1 py-2 rounded-lg transition ${
-            subTab === 'applications'
-              ? 'bg-white text-primary shadow-sm font-extrabold'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          {language === 'ta' ? 'விண்ணப்பங்கள்' : 'Applied'} ({applications.length})
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="space-y-3">
-        {subTab === 'posted' && (
+      <div className="px-4 pt-4 max-w-md mx-auto space-y-3">
+        {/* Tab 1: Posted Tasks */}
+        {tab === 'posted' && (
           postedTasks.length === 0 ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
-              You haven't posted any tasks yet. Tap Post to begin!
-            </div>
+            <EmptyState
+              title="You haven't posted any tasks yet"
+              subtitle="Need help with parcel pickup, errands, or home chores? Post in seconds!"
+              actionText="Post a Task"
+              onAction={() => setTab('post')}
+            />
           ) : (
             postedTasks.map((t) => <TaskCard key={t.id} task={t} />)
           )
         )}
 
-        {subTab === 'assigned' && (
-          assignedTasks.length === 0 ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
-              No tasks currently assigned to you. Explore tasks to apply!
-            </div>
-          ) : (
-            assignedTasks.map((t) => <TaskCard key={t.id} task={t} />)
-          )
-        )}
-
-        {subTab === 'applications' && (
+        {/* Tab 2: Applications */}
+        {tab === 'applied' && (
           applications.length === 0 ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-center text-xs text-slate-500">
-              You haven't applied to any tasks yet.
-            </div>
+            <EmptyState
+              title="No task applications yet"
+              subtitle="Explore neighborhood tasks in Chennai to start earning."
+              actionText="Explore Tasks"
+              onAction={() => setTab('explore')}
+            />
           ) : (
             applications.map((app) => (
               <div
                 key={app.id}
                 onClick={() => app.task && openTaskDetails(app.task.id)}
-                className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:border-primary/40 transition"
+                className="bg-white p-4 rounded-3xl border border-neutral-200/90 shadow-quick flex items-center justify-between cursor-pointer hover:border-part-green transition select-none"
               >
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 line-clamp-1">
-                    {app.task?.title || 'Task'}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-2 py-0.5 rounded-full">
+                    Application {app.status}
+                  </span>
+                  <h4 className="font-heading font-black text-xs text-neutral-900 line-clamp-1">
+                    {app.task?.title || 'Neighborhood Task'}
                   </h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] text-slate-400">
-                      Applied {new Date(app.created_at).toLocaleDateString()}
-                    </span>
-                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
-                      Status: {app.status}
-                    </span>
-                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    Budget: ₹{app.task?.budget_inr} • Applied on {new Date(app.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-neutral-400" />
               </div>
             ))
+          )
+        )}
+
+        {/* Tab 3: Ongoing */}
+        {tab === 'ongoing' && (
+          ongoingTasks.length === 0 ? (
+            <EmptyState
+              title="No tasks currently in progress"
+              subtitle="Accepted jobs or assigned tasks will show here with real-time chat."
+            />
+          ) : (
+            ongoingTasks.map((t) => (
+              <div key={t.id} className="space-y-2">
+                <TaskCard task={t} />
+                <button
+                  type="button"
+                  onClick={() => openChat(t.id)}
+                  className="w-full py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white font-heading font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-xs transition"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-brand-yellow" />
+                  <span>Open Active Task Chat</span>
+                </button>
+              </div>
+            ))
+          )
+        )}
+
+        {/* Tab 4: Completed */}
+        {tab === 'completed' && (
+          completedTasks.length === 0 ? (
+            <EmptyState
+              title="No completed tasks yet"
+              subtitle="Gigs you complete and approve will be archived here along with receipts."
+            />
+          ) : (
+            completedTasks.map((t) => <TaskCard key={t.id} task={t} />)
           )
         )}
       </div>

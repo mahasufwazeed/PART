@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { authService, CHENNAI_LOCALITIES } from '@part/shared';
-import { LogIn, UserPlus, Shield, Globe, MapPin, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  LogIn,
+  UserPlus,
+  ShieldCheck,
+  Globe,
+  MapPin,
+  AlertCircle,
+  ArrowRight,
+  Zap,
+} from 'lucide-react';
 
 export const AuthScreen: React.FC = () => {
   const { setCurrentProfile, language, setLanguage } = useAppStore();
@@ -48,202 +57,188 @@ export const AuthScreen: React.FC = () => {
             city: 'Chennai',
             general_location: `${locality}, Chennai`,
             preferred_language: language,
-            skills: [],
-            interested_categories: [],
-            is_worker_available: true,
           });
-          const updated = await authService.getProfile(res.profile.id);
-          setCurrentProfile(updated!);
+          setCurrentProfile({
+            ...res.profile,
+            full_name: fullName,
+            general_location: `${locality}, Chennai`,
+          });
         }
       } else {
         const res = await authService.login(email, password);
         if (res.error) {
           setErrorMsg(res.error);
-        } else if (res.session) {
-          setCurrentProfile(res.session.profile);
+        } else {
+          setCurrentProfile(res.profile);
         }
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Authentication error');
+      setErrorMsg(err.message || 'Authentication failed. Please check inputs.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col justify-between p-6">
-      {/* Top Brand Header */}
-      <div>
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center font-black text-white text-base shadow-lg">
-              PART
-            </div>
-            <div>
-              <h1 className="font-extrabold text-sm tracking-tight text-white">
-                PART
-              </h1>
-              <span className="text-[10px] text-accent font-semibold tracking-wider uppercase block">
-                People At Right Time
-              </span>
-            </div>
+    <div className="min-h-screen bg-[#F7F8FA] flex flex-col justify-center px-4 py-8 select-none">
+      <div className="max-w-sm w-full mx-auto space-y-6">
+        {/* Brand Header */}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-3xl bg-brand-yellow text-neutral-950 font-heading font-black text-3xl flex items-center justify-center mx-auto shadow-yellow border-2 border-brand-yellow-hover">
+            P
           </div>
-
-          {/* Language Toggle */}
-          <button
-            onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')}
-            className="flex items-center gap-1.5 bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-full border border-slate-700 hover:bg-slate-700 transition"
-          >
-            <Globe className="w-3.5 h-3.5 text-accent" />
-            <span>{language === 'en' ? 'தமிழ்' : 'English'}</span>
-          </button>
-        </div>
-
-        <div className="space-y-1 mb-6">
-          <h2 className="text-2xl font-black text-white tracking-tight">
-            {isRegisterMode
-              ? language === 'ta'
-                ? 'புதிய கணக்கை உருவாக்கவும்'
-                : 'Join PART Chennai'
-              : language === 'ta'
-              ? 'மீண்டும் வருக!'
-              : 'Welcome Back'}
-          </h2>
-          <p className="text-xs text-slate-400">
+          <h1 className="font-heading font-black text-2xl sm:text-3xl text-neutral-950 tracking-tight">
+            PART
+          </h1>
+          <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
+            People At Right Time
+          </p>
+          <p className="text-xs text-neutral-600 font-medium max-w-xs mx-auto">
             {language === 'ta'
-              ? 'சென்னையில் சரியான நேரத்தில் சரியான உதவி அல்லது வருமானம்.'
-              : 'Right People. Right Time. Right Work in Chennai.'}
+              ? 'சரியான மனிதர்கள். சரியான நேரம். சரியான பணி.'
+              : 'Right People. Right Time. Right Work.'}
           </p>
         </div>
 
-        {/* Tab Toggle */}
-        <div className="flex bg-slate-800 p-1 rounded-2xl border border-slate-700 mb-6 text-xs font-bold">
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegisterMode(false);
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2.5 rounded-xl transition ${
-              !isRegisterMode
-                ? 'bg-primary text-white shadow font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            {language === 'ta' ? 'உள்நுழைக' : 'Sign In'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setIsRegisterMode(true);
-              setErrorMsg(null);
-            }}
-            className={`flex-1 py-2.5 rounded-xl transition ${
-              isRegisterMode
-                ? 'bg-primary text-white shadow font-extrabold'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            {language === 'ta' ? 'பதிவு செய்க' : 'Register'}
-          </button>
-        </div>
+        {/* Card Container */}
+        <div className="bg-white p-6 rounded-3xl border border-neutral-200/90 shadow-card space-y-4">
+          {/* Segmented Mode Selector */}
+          <div className="flex bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs font-heading font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegisterMode(false);
+                setErrorMsg(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-center transition cursor-pointer ${
+                !isRegisterMode
+                  ? 'bg-part-green text-white shadow-xs font-black'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegisterMode(true);
+                setErrorMsg(null);
+              }}
+              className={`flex-1 py-2 rounded-xl text-center transition cursor-pointer ${
+                isRegisterMode
+                  ? 'bg-part-green text-white shadow-xs font-black'
+                  : 'text-neutral-500 hover:text-neutral-900'
+              }`}
+            >
+              Create Account
+            </button>
+          </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
           {errorMsg && (
-            <div className="bg-rose-950/80 border border-rose-800 text-rose-200 text-xs p-3 rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3 rounded-2xl flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
               <span>{errorMsg}</span>
             </div>
           )}
 
-          {isRegisterMode && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                {language === 'ta' ? 'உங்கள் முழு பெயர் *' : 'Your Full Name *'}
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            {isRegisterMode && (
+              <>
+                <div className="space-y-1">
+                  <label className="block text-xs font-heading font-bold text-neutral-800">
+                    Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Anandha Krishnan"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full text-xs p-3.5 rounded-2xl bg-[#F7F8FA] border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-part-green font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-heading font-bold text-neutral-800">
+                    Chennai Neighborhood *
+                  </label>
+                  <select
+                    value={locality}
+                    onChange={(e) => setLocality(e.target.value)}
+                    className="w-full text-xs p-3.5 rounded-2xl bg-[#F7F8FA] border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-part-green font-medium"
+                  >
+                    {CHENNAI_LOCALITIES.map((loc) => (
+                      <option key={loc.name} value={loc.name}>
+                        {loc.name}, Chennai
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="space-y-1">
+              <label className="block text-xs font-heading font-bold text-neutral-800">
+                Email Address *
               </label>
               <input
-                type="text"
-                placeholder="e.g. Rahul Sundaram"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full bg-slate-800 text-white placeholder:text-slate-500 text-xs p-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                type="email"
+                required
+                placeholder="you@domain.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full text-xs p-3.5 rounded-2xl bg-[#F7F8FA] border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-part-green font-medium"
               />
             </div>
-          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              {language === 'ta' ? 'மின்னஞ்சல் முகவரி *' : 'Email Address *'}
-            </label>
-            <input
-              type="email"
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-800 text-white placeholder:text-slate-500 text-xs p-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              {language === 'ta' ? 'கடவுச்சொல் *' : 'Password *'}
-            </label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-800 text-white placeholder:text-slate-500 text-xs p-3 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          {isRegisterMode && (
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                {language === 'ta' ? 'சென்னை பகுதி *' : 'Your Chennai Locality *'}
+            <div className="space-y-1">
+              <label className="block text-xs font-heading font-bold text-neutral-800">
+                Password *
               </label>
-              <select
-                value={locality}
-                onChange={(e) => setLocality(e.target.value)}
-                className="w-full bg-slate-800 text-white text-xs p-3 rounded-xl border border-slate-700 focus:outline-none"
-              >
-                {CHENNAI_LOCALITIES.map((loc) => (
-                  <option key={loc.name} value={loc.name}>
-                    {loc.name} ({loc.zone})
-                  </option>
-                ))}
-              </select>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full text-xs p-3.5 rounded-2xl bg-[#F7F8FA] border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-part-green font-medium"
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-primary to-secondary text-white font-black text-xs py-3.5 rounded-xl shadow-lg hover:shadow-xl active:scale-[0.99] transition disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
-          >
-            <span>
-              {loading
-                ? 'Processing...'
-                : isRegisterMode
-                ? language === 'ta'
-                  ? 'கணக்கு தொடங்குக'
-                  : 'Create Real Account'
-                : language === 'ta'
-                ? 'உள்நுழைக'
-                : 'Sign In to PART'}
-            </span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
-      </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-4 bg-part-green hover:bg-part-green-dark text-white font-heading font-black text-xs rounded-2xl shadow-green hover:scale-[1.01] active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              {loading ? (
+                <span>Connecting...</span>
+              ) : (
+                <>
+                  <span>{isRegisterMode ? 'Complete Registration' : 'Sign In to PART'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
 
-      {/* Trust & Safety Footer */}
-      <div className="pt-6 border-t border-slate-800 text-center">
-        <span className="text-[10px] text-slate-500 flex items-center justify-center gap-1">
-          <Shield className="w-3 h-3 text-accent" />
-          Strict Data Isolation & PostGIS Geolocation • Chennai Launch
-        </span>
+          {/* Language Switch */}
+          <div className="flex items-center justify-center gap-2 pt-2 border-t border-neutral-100 text-xs">
+            <Globe className="w-3.5 h-3.5 text-neutral-400" />
+            <button
+              type="button"
+              onClick={() => setLanguage(language === 'en' ? 'ta' : 'en')}
+              className="text-part-green font-heading font-bold hover:underline"
+            >
+              {language === 'en' ? 'தமிழில் தொடரவும் (Tamil)' : 'Switch to English'}
+            </button>
+          </div>
+        </div>
+
+        {/* Security Notice */}
+        <p className="text-center text-[11px] text-neutral-400 flex items-center justify-center gap-1.5 font-medium">
+          <ShieldCheck className="w-3.5 h-3.5 text-part-green" />
+          <span>Encrypted with Row-Level Security for Chennai residents</span>
+        </p>
       </div>
     </div>
   );

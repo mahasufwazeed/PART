@@ -1,22 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { taskService } from '@part/shared';
-import { Task } from '@part/shared';
-import { Header } from '../components/Header';
+import { taskService, Task } from '@part/shared';
+import { PARTHeader } from '../components/PARTHeader';
+import { SearchBar } from '../components/SearchBar';
+import { HeroBanner } from '../components/HeroBanner';
+import { QuickActionCard } from '../components/QuickActionCard';
 import { CategoryGrid } from '../components/CategoryGrid';
+import { FastTasksSection } from '../components/FastTasksSection';
 import { TaskCard } from '../components/TaskCard';
+import { SkeletonLoader } from '../components/SkeletonLoader';
+import { EmptyState } from '../components/EmptyState';
 import {
-  PlusCircle,
-  Briefcase,
-  ShieldAlert,
-  Sparkles,
   ArrowRight,
   TrendingUp,
-  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Clock,
+  Compass,
 } from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
-  const { setTab, userLocation, language, currentProfile } = useAppStore();
+  const { setTab, userLocation, language, currentProfile, openTaskDetails } =
+    useAppStore();
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
@@ -35,180 +41,147 @@ export const HomeScreen: React.FC = () => {
     setTasks(nearby);
 
     // Fetch active user tasks
-    const posted = await taskService.getMyPostedTasks(currentProfile.id);
-    const assigned = await taskService.getMyAssignedTasks(currentProfile.id);
-    const allUserActive = [...posted, ...assigned].filter(
-      (t, idx, arr) =>
-        arr.findIndex((item) => item.id === t.id) === idx &&
-        ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)
-    );
-    setActiveTasks(allUserActive);
+    if (currentProfile?.id) {
+      const posted = await taskService.getMyPostedTasks(currentProfile.id);
+      const assigned = await taskService.getMyAssignedTasks(currentProfile.id);
+      const allUserActive = [...posted, ...assigned].filter(
+        (t, idx, arr) =>
+          arr.findIndex((item) => item.id === t.id) === idx &&
+          ['ASSIGNED', 'IN_PROGRESS', 'COMPLETION_SUBMITTED'].includes(t.status)
+      );
+      setActiveTasks(allUserActive);
+    } else {
+      setActiveTasks([]);
+    }
 
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchTasks();
-  }, [userLocation, selectedCategory, searchQuery, currentProfile.id]);
+  }, [userLocation, selectedCategory, searchQuery, currentProfile?.id]);
 
   return (
-    <div className="pb-24">
-      {/* Top Header */}
-      <Header searchValue={searchQuery} onSearchChange={setSearchQuery} />
+    <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
+      {/* 1. TOP HEADER (Brand Yellow, Logo, Location, Profile) */}
+      <PARTHeader />
+
+      {/* Sticky White Search Bar container right below Header */}
+      <div className="bg-brand-yellow px-4 pb-3.5 pt-0 shadow-xs">
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onSubmit={() => setTab('explore')}
+        />
+      </div>
 
       <div className="px-4 pt-4 space-y-5">
-        {/* Primary Action Hero Cards */}
-        <div className="grid grid-cols-2 gap-3">
-          <div
-            onClick={() => setTab('post')}
-            className="bg-gradient-to-br from-primary to-indigo-700 text-white p-4 rounded-2xl shadow-md cursor-pointer hover:shadow-lg transition-transform active:scale-[0.98] flex flex-col justify-between h-36"
-          >
-            <div>
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
-                <PlusCircle className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-extrabold text-sm leading-tight">
-                {language === 'ta' ? 'பணி பதிவு செய்க' : 'Post a Task'}
-              </h3>
-              <p className="text-[11px] text-indigo-100/80 mt-1">
-                {language === 'ta' ? 'உடனடி உதவி பெறுங்கள்.' : 'Need help? Find someone nearby.'}
-              </p>
-            </div>
-            <div className="flex items-center text-xs font-bold text-accent">
-              <span>{language === 'ta' ? 'தொடங்கு' : 'Post Task'}</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </div>
-
-          <div
-            onClick={() => setTab('explore')}
-            className="bg-gradient-to-br from-secondary to-blue-700 text-white p-4 rounded-2xl shadow-md cursor-pointer hover:shadow-lg transition-transform active:scale-[0.98] flex flex-col justify-between h-36"
-          >
-            <div>
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
-                <Briefcase className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-extrabold text-sm leading-tight">
-                {language === 'ta' ? 'பணி தேடுக' : 'Find Work'}
-              </h3>
-              <p className="text-[11px] text-blue-100/80 mt-1">
-                {language === 'ta' ? 'உதவி செய்து வருமானம் ஈட்டவும்.' : 'Earn money by helping people.'}
-              </p>
-            </div>
-            <div className="flex items-center text-xs font-bold text-emerald-300">
-              <span>{language === 'ta' ? 'ஆராய்க' : 'Explore Tasks'}</span>
-              <ArrowRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </div>
-        </div>
-
-        {/* Active Tasks in Progress (if any) */}
+        {/* Active Ongoing Task Reminder (if any active gig) */}
         {activeTasks.length > 0 && (
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3.5 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-primary flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-accent" />
-                {language === 'ta' ? 'உங்கள் செயலில் உள்ள பணிகள்' : 'Your Active Tasks'} ({activeTasks.length})
-              </span>
-              <button
-                onClick={() => setTab('activity')}
-                className="text-xs text-primary font-bold hover:underline"
-              >
-                {language === 'ta' ? 'அனைத்தும்' : 'View all'}
-              </button>
+          <div className="bg-gradient-to-r from-emerald-500 to-part-green text-white p-3.5 rounded-2xl shadow-green flex items-center justify-between gap-3 animate-slide-up">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                <Clock className="w-4 h-4 text-white animate-spin" />
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-100 block">
+                  Active Ongoing Task
+                </span>
+                <h4 className="font-heading font-black text-xs leading-tight line-clamp-1">
+                  {activeTasks[0].title}
+                </h4>
+              </div>
             </div>
-
-            <div className="space-y-2">
-              {activeTasks.map((t) => (
-                <TaskCard key={t.id} task={t} />
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => openTaskDetails(activeTasks[0].id)}
+              className="px-3 py-1 bg-white text-part-green text-xs font-heading font-black rounded-lg shadow-xs hover:bg-neutral-100 shrink-0 cursor-pointer"
+            >
+              Open
+            </button>
           </div>
         )}
 
-        {/* Popular Categories */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-bold text-slate-900">
-              {language === 'ta' ? 'பிரபலமான பிரிவுகள்' : 'Popular Categories'}
-            </h3>
-            <span className="text-[11px] font-semibold text-slate-400">
-              Chennai
-            </span>
-          </div>
-          <CategoryGrid
-            selectedCategoryId={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-          />
-        </div>
+        {/* 2. HERO SECTION (Banner with illustration & Dual CTAs) */}
+        <HeroBanner />
 
-        {/* Tasks Near You Header */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
+        {/* 3. QUICK ACTIONS (Two prominent tiles: I NEED HELP vs I WANT TO EARN) */}
+        <QuickActionCard />
+
+        {/* 4. CATEGORIES (2-row horizontal grid with pastel backgrounds) */}
+        <CategoryGrid
+          selectedCategoryId={selectedCategory}
+          onSelectCategory={(catId) => setSelectedCategory(catId)}
+        />
+
+        {/* 5. FAST TASKS (⚡ Quick Tasks taking under an hour) */}
+        <FastTasksSection tasks={tasks} />
+
+        {/* 6. NEARBY TASKS ("Tasks Around You" + "See All") */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                {language === 'ta' ? 'உங்களுக்கு அருகில் உள்ள பணிகள்' : 'Tasks Near You'}
+              <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                {language === 'ta' ? 'அருகிலுள்ள பணிகள்' : 'Tasks Around You'}
               </h3>
-              <p className="text-[11px] text-slate-500">
-                {userLocation.locality} • {tasks.length} {language === 'ta' ? 'கிடைக்கின்றன' : 'available'}
+              <p className="text-[11px] font-medium text-neutral-500">
+                {language === 'ta'
+                  ? `${userLocation.locality.split(',')[0]} சுற்றளவில் கிடைக்கும் வாய்ப்புகள்`
+                  : `Opportunities around ${userLocation.locality.split(',')[0]}`}
               </p>
             </div>
 
             <button
+              type="button"
               onClick={() => setTab('explore')}
-              className="text-xs font-bold text-primary hover:underline flex items-center"
+              className="text-xs font-heading font-bold text-part-green hover:underline flex items-center gap-0.5 cursor-pointer"
             >
-              <span>{language === 'ta' ? 'வரைபடத்தில் பார்க்க' : 'Map view'}</span>
-              <ArrowRight className="w-3 h-3 ml-0.5" />
+              <span>{language === 'ta' ? 'அனைத்தும் காண்க' : 'See All'}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
+          {/* Task Feed */}
           {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-28 bg-slate-200/60 rounded-2xl animate-pulse"
-                />
-              ))}
-            </div>
+            <SkeletonLoader count={3} />
           ) : tasks.length === 0 ? (
-            <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
-              <p className="text-xs text-slate-500 font-medium">
-                {language === 'ta'
-                  ? 'இந்த பகுதியில் தற்போது புதிய பணிகள் இல்லை. நீங்கள் ஒரு பணியை பதிவு செய்யலாம்!'
-                  : 'No open tasks found in this radius right now. Post one or expand your search!'}
-              </p>
-              <button
-                onClick={() => setTab('post')}
-                className="mt-3 bg-primary text-white text-xs font-bold px-4 py-2 rounded-xl shadow"
-              >
-                {language === 'ta' ? 'பணி பதிவு செய்' : 'Post a Task Now'}
-              </button>
-            </div>
+            <EmptyState
+              title={
+                language === 'ta'
+                  ? 'தற்போது பணிகள் எதுவும் இல்லை'
+                  : 'No tasks nearby right now'
+              }
+              subtitle={
+                language === 'ta'
+                  ? 'உங்கள் அண்டை பகுதியில் முதல் பணியை பதிவு செய்து உதவுங்கள்!'
+                  : 'Be the first to post a task in your neighborhood and get help in minutes.'
+              }
+              actionText={language === 'ta' ? 'பணி பதிவு செய்க' : 'Post a Task'}
+              onAction={() => setTab('post')}
+            />
           ) : (
             <div className="space-y-3">
-              {tasks.map((task) => (
+              {tasks.slice(0, 5).map((task) => (
                 <TaskCard key={task.id} task={task} />
               ))}
             </div>
           )}
         </div>
 
-        {/* Safety Tips Card */}
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center shrink-0 text-accent">
-            <ShieldAlert className="w-4 h-4" />
+        {/* Safety & Trust Footer Pill */}
+        <div className="bg-white rounded-2xl p-3 border border-neutral-200/80 shadow-quick flex items-center gap-3 text-xs text-neutral-600">
+          <div className="w-8 h-8 rounded-xl bg-part-green-mint text-part-green flex items-center justify-center shrink-0">
+            <ShieldCheck className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-emerald-900">
-              {language === 'ta' ? 'பாதுகாப்பு குறிப்புகள் (சென்னை)' : 'PART Community Trust & Safety'}
-            </h4>
-            <p className="text-[11px] text-emerald-800/90 mt-0.5 leading-relaxed">
+            <span className="font-heading font-bold text-neutral-900 block leading-tight">
+              {language === 'ta' ? '100% பாதுகாப்பான பரிவர்த்தனை' : '100% Safe & Neighborhood Verified'}
+            </span>
+            <span className="text-[11px] text-neutral-500">
               {language === 'ta'
-                ? 'பொது இடங்களில் சந்திக்கவும். பணி நிறைவடைந்த பின்னரே பணம் செலுத்தவும்.'
-                : 'Meet in well-lit public spots. Only confirm payment upon genuine task completion. Never share bank OTPs or passcodes.'}
-            </p>
+                ? 'நேரடி கட்டணம் & சரியான நேரத்தில் உதவி.'
+                : 'Cash on completion or direct escrow. Exact addresses shared only after worker assignment.'}
+            </span>
           </div>
         </div>
       </div>

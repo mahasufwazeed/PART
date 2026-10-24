@@ -20,8 +20,8 @@ export const App: React.FC = () => {
   // If user is not authenticated, show real registration/login screen
   if (!currentProfile) {
     return (
-      <div className="min-h-screen bg-slate-900 flex justify-center font-sans">
-        <div className="w-full max-w-md bg-slate-900 min-h-screen relative shadow-2xl flex flex-col border-x border-slate-800">
+      <div className="min-h-screen bg-[#F0F2F5] flex justify-center font-sans">
+        <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-200">
           <AuthScreen />
         </div>
       </div>
@@ -46,10 +46,10 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 flex justify-center font-sans">
+    <div className="min-h-screen bg-[#E5E7EB] flex justify-center font-sans">
       {/* Mobile Device Frame Container */}
-      <div className="w-full max-w-md bg-surface min-h-screen relative shadow-2xl flex flex-col border-x border-slate-200">
-        {/* Top User Account Bar */}
+      <div className="w-full max-w-md bg-[#F7F8FA] min-h-screen relative shadow-2xl flex flex-col border-x border-neutral-300/80">
+        {/* Top User Account Bar (shows only on non-home tabs) */}
         <UserAccountBar />
 
         {/* Dynamic Main View */}

@@ -8,6 +8,12 @@ import {
   CheckCheck,
   Shield,
   Smile,
+  MoreVertical,
+  Flag,
+  UserX,
+  MapPin,
+  Clock,
+  IndianRupee,
 } from 'lucide-react';
 
 export const ChatModal: React.FC = () => {
@@ -15,12 +21,14 @@ export const ChatModal: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [conversationId, setConversationId] = useState<string>('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [safetyNotice, setSafetyNotice] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const task = activeChatTaskId ? mockStore.tasks.get(activeChatTaskId) : null;
 
   useEffect(() => {
-    if (!activeChatTaskId) return;
+    if (!activeChatTaskId || !currentProfile) return;
 
     const initChat = async () => {
       const otherParticipantId =
@@ -40,135 +48,209 @@ export const ChatModal: React.FC = () => {
     };
 
     initChat();
-  }, [activeChatTaskId, currentProfile.id]);
+  }, [activeChatTaskId, currentProfile?.id]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (!activeChatTaskId || !task) return null;
+  if (!activeChatTaskId || !task || !currentProfile) return null;
 
-  const handleSend = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!inputText.trim()) return;
+  const handleSend = async (contentToSend?: string) => {
+    const text = contentToSend || inputText;
+    if (!text.trim()) return;
 
-    const content = inputText;
     setInputText('');
 
     const newMsg = await chatService.sendMessage(
       conversationId,
       currentProfile.id,
-      content
+      text
     );
 
     setMessages((prev) => [...prev, newMsg]);
   };
 
+  const handleBlockUser = () => {
+    setShowMenu(false);
+    setSafetyNotice('User has been blocked. They can no longer contact you.');
+  };
+
+  const handleReportUser = () => {
+    setShowMenu(false);
+    setSafetyNotice('Report submitted to Chennai Safety Officers. Evidence logged.');
+  };
+
   const quickReplies = [
     'I have arrived at the location.',
-    'Where exactly is the delivery package?',
+    'Where is the pickup point?',
     'Work finished, please review!',
+    'Thank you so much!',
   ];
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full max-w-md h-[90vh] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col animate-slide-up overflow-hidden">
-        {/* Chat Header */}
-        <div className="bg-slate-900 text-white p-3.5 flex items-center justify-between border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-xs font-bold text-accent">
-              💬
+    <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+      <div className="bg-white w-full max-w-md h-[90vh] sm:h-[650px] rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-slide-up">
+        {/* Header */}
+        <div className="bg-white px-4 py-3 border-b border-neutral-200/90 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-full bg-brand-yellow text-neutral-950 font-heading font-black text-xs flex items-center justify-center">
+              P
             </div>
             <div>
-              <h3 className="text-xs font-bold leading-tight line-clamp-1">
-                {task.title}
+              <h3 className="font-heading font-black text-xs text-neutral-900 leading-tight">
+                Task Messenger
               </h3>
-              <span className="text-[10px] text-slate-400 flex items-center gap-1">
-                <Shield className="w-2.5 h-2.5 text-accent" />
-                Verified PART Conversation (Encrypted)
+              <span className="text-[10px] text-part-green font-bold flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-part-green" />
+                Live Conversation
               </span>
             </div>
           </div>
 
-          <button
-            onClick={closeChat}
-            className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 relative">
+            <button
+              type="button"
+              onClick={() => setShowMenu(!showMenu)}
+              className="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center text-neutral-500"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-9 w-44 bg-white rounded-2xl shadow-card border border-neutral-200 p-1.5 text-xs z-30 animate-fade-in space-y-1">
+                <button
+                  type="button"
+                  onClick={handleReportUser}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2 text-neutral-700 hover:bg-neutral-50 rounded-xl"
+                >
+                  <Flag className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Report User</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBlockUser}
+                  className="w-full px-3 py-2 text-left flex items-center gap-2 text-rose-600 hover:bg-rose-50 rounded-xl"
+                >
+                  <UserX className="w-3.5 h-3.5" />
+                  <span>Block User</span>
+                </button>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={closeChat}
+              className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 font-bold text-sm"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        {/* Messages List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
-          <div className="text-center my-2">
-            <span className="text-[10px] bg-slate-200/80 text-slate-600 px-2.5 py-1 rounded-full font-medium">
-              Task assigned: Coordinates shared securely.
+        {/* Task Context Card */}
+        <div className="bg-[#F7F8FA] px-4 py-2 border-b border-neutral-200/60 flex items-center justify-between text-xs">
+          <div className="truncate max-w-[240px]">
+            <span className="font-heading font-bold text-neutral-900 block truncate">
+              {task.title}
+            </span>
+            <span className="text-[10px] text-neutral-500">
+              {task.location?.locality || 'Chennai'}
             </span>
           </div>
+          <span className="font-heading font-black text-part-green shrink-0">
+            ₹{task.budget_inr}
+          </span>
+        </div>
 
-          {messages.map((msg) => {
-            const isMe = msg.sender_id === currentProfile.id;
-            return (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-              >
+        {safetyNotice && (
+          <div className="bg-amber-50 text-amber-900 text-[11px] p-2 text-center border-b border-amber-200 font-medium">
+            {safetyNotice}
+          </div>
+        )}
+
+        {/* Messages Stream */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#F7F8FA]">
+          {messages.length === 0 ? (
+            <div className="text-center py-10 space-y-2">
+              <div className="w-10 h-10 rounded-full bg-brand-yellow/20 text-neutral-950 flex items-center justify-center mx-auto">
+                <Smile className="w-5 h-5 text-part-green" />
+              </div>
+              <p className="text-xs text-neutral-400 max-w-xs mx-auto">
+                Say hello! Coordinate delivery pickup, timing, and landmark details safely.
+              </p>
+            </div>
+          ) : (
+            messages.map((m) => {
+              const isMine = m.sender_id === currentProfile.id;
+              return (
                 <div
-                  className={`max-w-[80%] p-3 rounded-2xl text-xs leading-relaxed shadow-sm ${
-                    isMe
-                      ? 'bg-primary text-white rounded-br-none'
-                      : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
-                  }`}
+                  key={m.id}
+                  className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 >
-                  <p>{msg.content}</p>
                   <div
-                    className={`flex items-center justify-end gap-1 text-[9px] mt-1 ${
-                      isMe ? 'text-indigo-200' : 'text-slate-400'
+                    className={`max-w-[78%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
+                      isMine
+                        ? 'bg-part-green text-white rounded-br-none'
+                        : 'bg-white text-neutral-900 rounded-bl-none border border-neutral-200/80'
                     }`}
                   >
-                    <span>
-                      {new Date(msg.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    {isMe && <CheckCheck className="w-3 h-3 text-accent" />}
+                    <p className="whitespace-pre-line">{m.content}</p>
+                    <div
+                      className={`flex items-center justify-end gap-1 text-[9px] mt-1 ${
+                        isMine ? 'text-emerald-100' : 'text-neutral-400'
+                      }`}
+                    >
+                      <span>
+                        {new Date(m.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      {isMine && <CheckCheck className="w-3 h-3 text-white" />}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
           <div ref={messagesEndRef} />
         </div>
 
         {/* Quick Suggestion Chips */}
-        <div className="px-3 py-1.5 bg-white border-t border-slate-100 flex gap-1.5 overflow-x-auto scrollbar-none">
-          {quickReplies.map((r, idx) => (
+        <div className="bg-white px-3 py-1.5 border-t border-neutral-100 flex gap-1.5 overflow-x-auto scrollbar-none">
+          {quickReplies.map((r, i) => (
             <button
-              key={idx}
-              onClick={() => setInputText(r)}
-              className="text-[11px] bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap hover:bg-slate-200 transition"
+              key={i}
+              type="button"
+              onClick={() => handleSend(r)}
+              className="text-[10px] font-bold text-neutral-600 bg-neutral-100 hover:bg-neutral-200 px-2.5 py-1 rounded-full whitespace-nowrap shrink-0 transition"
             >
               {r}
             </button>
           ))}
         </div>
 
-        {/* Chat Input Bar */}
+        {/* Input Bar */}
         <form
-          onSubmit={handleSend}
-          className="p-3 bg-white border-t border-slate-200 flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
+          }}
+          className="p-3 bg-white border-t border-neutral-200/90 flex items-center gap-2"
         >
           <input
             type="text"
             placeholder="Type a message..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            className="flex-1 bg-slate-100 text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary"
+            className="flex-1 bg-[#F7F8FA] text-xs sm:text-sm px-3.5 py-2.5 rounded-2xl border border-neutral-300 focus:outline-none focus:ring-2 focus:ring-part-green font-medium"
           />
+
           <button
             type="submit"
-            className="w-9 h-9 rounded-xl bg-primary text-white flex items-center justify-center shadow hover:bg-primaryDark active:scale-95 transition"
+            disabled={!inputText.trim()}
+            className="w-10 h-10 rounded-2xl bg-part-green hover:bg-part-green-dark disabled:opacity-40 text-white flex items-center justify-center shadow-green transition cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>

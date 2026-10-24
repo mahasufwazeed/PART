@@ -1,28 +1,28 @@
 import React from 'react';
 import { useAppStore, AppTab } from '../store/useAppStore';
-import { Home, Compass, PlusCircle, Clock, User } from 'lucide-react';
+import { Home, Compass, Plus, Clock, User } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const { currentTab, setTab, language } = useAppStore();
 
   const labels = {
-    home: language === 'ta' ? 'முகப்பு' : 'Home',
-    explore: language === 'ta' ? 'தேடுக' : 'Explore',
-    post: language === 'ta' ? 'பணி பதிவு' : 'Post',
-    activity: language === 'ta' ? 'செயல்பாடு' : 'Activity',
-    profile: language === 'ta' ? 'சுயவிவரம்' : 'Profile',
+    home: language === 'ta' ? 'முகப்பு' : 'HOME',
+    explore: language === 'ta' ? 'தேடுக' : 'EXPLORE',
+    post: language === 'ta' ? 'பதிவு' : 'POST',
+    activity: language === 'ta' ? 'செயல்பாடு' : 'ACTIVITY',
+    profile: language === 'ta' ? 'சுயவிவரம்' : 'PROFILE',
   };
 
   const tabs: { key: AppTab; label: string; icon: React.FC<{ className?: string }> }[] = [
     { key: 'home', label: labels.home, icon: Home },
     { key: 'explore', label: labels.explore, icon: Compass },
-    { key: 'post', label: labels.post, icon: PlusCircle },
+    { key: 'post', label: labels.post, icon: Plus },
     { key: 'activity', label: labels.activity, icon: Clock },
     { key: 'profile', label: labels.profile, icon: User },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1.5 flex items-center justify-around z-30 shadow-2xl">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-neutral-200/90 px-3 py-1.5 flex items-center justify-around z-30 shadow-sticky select-none">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = currentTab === tab.key;
@@ -32,13 +32,14 @@ export const BottomNav: React.FC = () => {
           return (
             <button
               key={tab.key}
+              type="button"
               onClick={() => setTab('post')}
-              className="flex flex-col items-center -mt-5 group"
+              className="flex flex-col items-center -mt-6 group cursor-pointer"
             >
-              <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary to-secondary text-white flex items-center justify-center shadow-lg group-active:scale-95 transition-transform ring-4 ring-white">
-                <PlusCircle className="w-6 h-6" />
+              <div className="w-13 h-13 rounded-full bg-brand-yellow text-neutral-950 flex items-center justify-center shadow-yellow group-hover:scale-105 active:scale-95 transition-transform ring-4 ring-white border border-brand-yellow-hover">
+                <Plus className="w-6 h-6 stroke-[3]" />
               </div>
-              <span className="text-[10px] font-semibold text-primary mt-1">
+              <span className="text-[10px] font-heading font-black text-neutral-900 mt-1 uppercase tracking-wider">
                 {tab.label}
               </span>
             </button>
@@ -48,15 +49,24 @@ export const BottomNav: React.FC = () => {
         return (
           <button
             key={tab.key}
+            type="button"
             onClick={() => setTab(tab.key)}
-            className={`flex flex-col items-center py-1 px-3 rounded-lg transition ${
+            className={`flex flex-col items-center py-1 px-2.5 rounded-xl transition cursor-pointer ${
               isActive
-                ? 'text-primary font-bold'
-                : 'text-slate-400 hover:text-slate-600 font-medium'
+                ? 'text-part-green font-extrabold'
+                : 'text-neutral-400 hover:text-neutral-700 font-semibold'
             }`}
           >
-            <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
-            <span className="text-[10px] mt-0.5">{tab.label}</span>
+            <div
+              className={`p-1 rounded-xl transition ${
+                isActive ? 'bg-part-green-mint text-part-green scale-105' : ''
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.8]'}`} />
+            </div>
+            <span className="text-[9.5px] font-heading tracking-wider mt-0.5 uppercase">
+              {tab.label}
+            </span>
           </button>
         );
       })}

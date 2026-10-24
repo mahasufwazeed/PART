@@ -11,25 +11,27 @@ export const UserAccountBar: React.FC = () => {
     setLanguage,
     setUserLocation,
     logout,
+    currentTab,
   } = useAppStore();
 
-  if (!currentProfile) return null;
+  // On Home screen, PARTHeader already serves as the top brand bar
+  if (!currentProfile || currentTab === 'home') return null;
 
   return (
-    <div className="bg-slate-900 text-white px-3.5 py-2 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-slate-800">
+    <div className="bg-white text-neutral-800 px-4 py-2 text-xs flex flex-wrap items-center justify-between gap-2 border-b border-neutral-200/80 shadow-xs select-none">
       <div className="flex items-center gap-2">
-        <div className="w-5 h-5 rounded-full bg-accent/20 text-accent font-black text-[10px] flex items-center justify-center">
-          {currentProfile.full_name.charAt(0)}
+        <div className="w-5 h-5 rounded-full bg-brand-yellow text-neutral-950 font-heading font-black text-[10px] flex items-center justify-center">
+          {currentProfile.full_name.charAt(0).toUpperCase()}
         </div>
-        <span className="font-bold text-slate-200">
+        <span className="font-heading font-bold text-neutral-900 truncate max-w-[130px]">
           {currentProfile.full_name}
         </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {/* Locality Selector */}
-        <div className="flex items-center gap-1 text-slate-300">
-          <MapPin className="w-3 h-3 text-secondary-light" />
+        <div className="flex items-center gap-1 text-neutral-600">
+          <MapPin className="w-3 h-3 text-part-green" />
           <select
             value={userLocation.locality.split(',')[0]}
             onChange={(e) => {
@@ -42,7 +44,7 @@ export const UserAccountBar: React.FC = () => {
                 });
               }
             }}
-            className="bg-slate-800 text-white text-[11px] rounded px-1.5 py-0.5 border border-slate-700 focus:outline-none"
+            className="bg-neutral-100 text-neutral-800 text-[11px] font-medium rounded-lg px-2 py-0.5 border border-neutral-200 focus:outline-none"
           >
             {CHENNAI_LOCALITIES.map((loc) => (
               <option key={loc.name} value={loc.name}>
@@ -53,33 +55,26 @@ export const UserAccountBar: React.FC = () => {
         </div>
 
         {/* Language Toggle */}
-        <div className="flex items-center gap-1 bg-slate-800 rounded p-0.5 border border-slate-700">
+        <div className="flex items-center bg-neutral-100 rounded-lg p-0.5 border border-neutral-200 text-[10px]">
           <button
+            type="button"
             onClick={() => setLanguage('en')}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-              language === 'en' ? 'bg-primary text-white' : 'text-slate-400'
+            className={`px-1.5 py-0.5 rounded font-bold transition ${
+              language === 'en' ? 'bg-part-green text-white shadow-xs' : 'text-neutral-500'
             }`}
           >
             EN
           </button>
           <button
+            type="button"
             onClick={() => setLanguage('ta')}
-            className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-              language === 'ta' ? 'bg-accent text-slate-950' : 'text-slate-400'
+            className={`px-1.5 py-0.5 rounded font-bold transition ${
+              language === 'ta' ? 'bg-part-green text-white shadow-xs' : 'text-neutral-500'
             }`}
           >
             தமிழ்
           </button>
         </div>
-
-        {/* Sign Out */}
-        <button
-          onClick={logout}
-          title="Sign Out"
-          className="text-slate-400 hover:text-rose-400 transition ml-1"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-        </button>
       </div>
     </div>
   );
