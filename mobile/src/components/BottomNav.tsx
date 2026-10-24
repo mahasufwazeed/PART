@@ -22,7 +22,7 @@ export const BottomNav: React.FC = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-neutral-200/90 px-3 py-1.5 flex items-center justify-around z-30 shadow-sticky select-none">
+    <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-neutral-200/90 px-3 py-1.5 flex items-center justify-around z-40 shadow-sticky select-none pointer-events-auto">
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = currentTab === tab.key;
@@ -31,13 +31,14 @@ export const BottomNav: React.FC = () => {
         if (isPost) {
           return (
             <button
+              id="nav-tab-post"
               key={tab.key}
               type="button"
               onClick={() => setTab('post')}
               className="flex flex-col items-center -mt-6 group cursor-pointer"
             >
-              <div className="w-13 h-13 rounded-full bg-brand-yellow text-neutral-950 flex items-center justify-center shadow-yellow group-hover:scale-105 active:scale-95 transition-transform ring-4 ring-white border border-brand-yellow-hover">
-                <Plus className="w-6 h-6 stroke-[3]" />
+              <div className="w-14 h-14 rounded-full bg-brand-yellow text-neutral-950 flex items-center justify-center shadow-yellow group-hover:scale-105 active:scale-95 transition-transform ring-4 ring-white border border-brand-yellow-hover">
+                <Plus className="w-7 h-7 stroke-[3]" />
               </div>
               <span className="text-[10px] font-heading font-black text-neutral-900 mt-1 uppercase tracking-wider">
                 {tab.label}
@@ -48,6 +49,7 @@ export const BottomNav: React.FC = () => {
 
         return (
           <button
+            id={`nav-tab-${tab.key}`}
             key={tab.key}
             type="button"
             onClick={() => setTab(tab.key)}

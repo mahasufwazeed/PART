@@ -63,14 +63,44 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Sync currentTab with currentPath if on main app routes
+  // Tab <-> Path mapping
+  const TAB_TO_PATH: Record<string, string> = {
+    home: '/',
+    explore: '/explore',
+    post: '/post',
+    activity: '/activity',
+    profile: '/profile',
+  };
+
+  const PATH_TO_TAB: Record<string, 'home' | 'explore' | 'post' | 'activity' | 'profile'> = {
+    '/': 'home',
+    '/explore': 'explore',
+    '/post': 'post',
+    '/activity': 'activity',
+    '/profile': 'profile',
+  };
+
+  // 1. Sync currentPath & browser URL history when user switches currentTab
   useEffect(() => {
-    if (currentPath === '/explore' && currentTab !== 'explore') setTab('explore');
-    else if (currentPath === '/post' && currentTab !== 'post') setTab('post');
-    else if (currentPath === '/activity' && currentTab !== 'activity') setTab('activity');
-    else if (currentPath === '/profile' && currentTab !== 'profile') setTab('profile');
-    else if (currentPath === '/' && currentTab !== 'home') setTab('home');
-  }, [currentPath, currentTab, setTab]);
+    const targetPath = TAB_TO_PATH[currentTab];
+    if (targetPath && currentPath !== targetPath) {
+      const isAuthRoute = ['/login', '/signup', '/forgot-password', '/update-password', '/auth/callback'].includes(currentPath);
+      if (!isAuthRoute) {
+        setCurrentPath(targetPath);
+        if (typeof window !== 'undefined') {
+          window.history.pushState(null, '', targetPath);
+        }
+      }
+    }
+  }, [currentTab]);
+
+  // 2. Sync currentTab when browser URL changes (e.g. popstate or initial navigation)
+  useEffect(() => {
+    const targetTab = PATH_TO_TAB[currentPath];
+    if (targetTab && currentTab !== targetTab) {
+      setTab(targetTab);
+    }
+  }, [currentPath, setTab]);
 
   // Session persistence & SSR/browser onAuthStateChange listener
   useEffect(() => {

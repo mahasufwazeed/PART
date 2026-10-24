@@ -9,7 +9,16 @@ export const QuickActionCard: React.FC = () => {
     <div className="grid grid-cols-2 gap-3 select-none">
       {/* Tile 1: I NEED HELP */}
       <div
+        id="quick-action-post-task"
+        role="button"
+        tabIndex={0}
         onClick={() => setTab('post')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setTab('post');
+          }
+        }}
         className="bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200/80 p-4 rounded-3xl shadow-quick cursor-pointer hover:shadow-card transition-all active:scale-[0.98] flex flex-col justify-between h-38 group relative overflow-hidden"
       >
         <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-brand-yellow/20 rounded-full blur-lg group-hover:scale-125 transition-transform" />
@@ -39,7 +48,16 @@ export const QuickActionCard: React.FC = () => {
 
       {/* Tile 2: I WANT TO EARN */}
       <div
+        id="quick-action-find-tasks"
+        role="button"
+        tabIndex={0}
         onClick={() => setTab('explore')}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setTab('explore');
+          }
+        }}
         className="bg-gradient-to-br from-emerald-100 to-emerald-50 border border-emerald-200/80 p-4 rounded-3xl shadow-quick cursor-pointer hover:shadow-card transition-all active:scale-[0.98] flex flex-col justify-between h-38 group relative overflow-hidden"
       >
         <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-part-green/20 rounded-full blur-lg group-hover:scale-125 transition-transform" />
