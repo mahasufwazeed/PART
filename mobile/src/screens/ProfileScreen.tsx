@@ -47,7 +47,41 @@ import {
   Plus,
   ExternalLink,
   Info,
+  Pencil,
+  User,
+  QrCode,
 } from 'lucide-react';
+
+const PRESET_AVATARS = [
+  { id: 'initials', label: 'Initials Only', url: '', emoji: '🔤' },
+  { id: 'runner', label: 'Delivery Pro', url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', emoji: '🛵' },
+  { id: 'handyman', label: 'Handyman Pro', url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', emoji: '🛠️' },
+  { id: 'tech', label: 'Tech Expert', url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80', emoji: '⚡' },
+  { id: 'neighbor', label: 'Friendly Helper', url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', emoji: '🌸' },
+  { id: 'organizer', label: 'Organizer', url: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80', emoji: '💼' },
+];
+
+const POPULAR_SKILLS = [
+  '📦 Delivery & Errands',
+  '⚡ Electrical & Wiring',
+  '🛠️ Plumbing & Handyman',
+  '🧹 Home Deep Cleaning',
+  '📦 Moving & Heavy Lifting',
+  '🛒 Grocery & Market Shopping',
+  '💻 Tech & Mobile Support',
+  '🐕 Pet Care & Dog Walking',
+  '🌿 Gardening & Plant Care',
+  '🍳 Kitchen & Cooking Help',
+  '🚗 Driver & Chauffeur',
+  '🎨 Wall Painting & Repairs',
+];
+
+const getInitials = (name?: string | null) => {
+  if (!name || !name.trim()) return 'P';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+};
 
 interface ProfileScreenProps {
   onNavigateChangePassword?: () => void;
@@ -77,7 +111,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Avatar loading error fallback
+  const [avatarImgError, setAvatarImgError] = useState(false);
+
+  useEffect(() => {
+    setAvatarImgError(false);
+  }, [currentProfile?.avatar_url]);
+
   // Modal Visibility States
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [showSavedAddressesModal, setShowSavedAddressesModal] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
@@ -85,6 +127,20 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showEarningsModal, setShowEarningsModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  // Edit Profile Form State
+  const [editFullName, setEditFullName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editLocality, setEditLocality] = useState(CHENNAI_LOCALITIES[0].name);
+  const [editCity, setEditCity] = useState('Chennai');
+  const [editLanguage, setEditLanguage] = useState<'en' | 'ta'>('en');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [editUpiId, setEditUpiId] = useState('');
+  const [editSkills, setEditSkills] = useState<string[]>([]);
+  const [editIsAvailable, setEditIsAvailable] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editProfileError, setEditProfileError] = useState<string | null>(null);
 
   // Security Form State
   const [newPassword, setNewPassword] = useState('');
@@ -127,6 +183,89 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     });
     if (res.profile) {
       setCurrentProfile(res.profile);
+    }
+  };
+
+  // Open Edit Profile Modal with prefilled current data
+  const handleOpenEditModal = () => {
+    if (!currentProfile) return;
+    setEditFullName(currentProfile.full_name || '');
+    setEditPhone(currentProfile.phone || '');
+    setEditBio(currentProfile.bio || '');
+    setEditLocality(currentProfile.general_location || userLocation.locality || 'Velachery, Chennai');
+    setEditCity(currentProfile.city || 'Chennai');
+    setEditLanguage(currentProfile.preferred_language || 'en');
+    setEditAvatarUrl(currentProfile.avatar_url || '');
+    setEditUpiId(currentProfile.upi_id || '');
+    setEditSkills(
+      currentProfile.skills && currentProfile.skills.length > 0
+        ? currentProfile.skills
+        : ['📦 Delivery & Errands', '⚡ Electrical & Wiring']
+    );
+    setEditIsAvailable(currentProfile.is_worker_available ?? true);
+    setEditProfileError(null);
+    setShowEditProfileModal(true);
+  };
+
+  // Save updated profile details
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditProfileError(null);
+
+    if (!editFullName.trim() || editFullName.trim().length < 2) {
+      setEditProfileError('Full name must be at least 2 characters.');
+      return;
+    }
+
+    const cleanPhone = editPhone.trim().replace(/\D/g, '');
+    if (editPhone.trim() && cleanPhone.length !== 10) {
+      setEditProfileError('Please enter a valid 10-digit Indian mobile number.');
+      return;
+    }
+
+    if (editUpiId.trim() && !editUpiId.includes('@')) {
+      setEditProfileError('Please enter a valid UPI handle (e.g. username@okhdfcbank).');
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      const formattedPhone = cleanPhone
+        ? `+91 ${cleanPhone.slice(0, 5)} ${cleanPhone.slice(5)}`
+        : null;
+
+      const res = await authService.updateProfile(currentProfile.id, {
+        full_name: editFullName.trim(),
+        phone: formattedPhone || (editPhone.trim() ? editPhone.trim() : null),
+        bio: editBio.trim() || null,
+        city: editCity.trim() || 'Chennai',
+        general_location: editLocality.trim(),
+        preferred_language: editLanguage,
+        avatar_url: editAvatarUrl.trim() || null,
+        is_worker_available: editIsAvailable,
+        upi_id: editUpiId.trim() || null,
+        skills: editSkills,
+      });
+
+      if (res.error) {
+        setEditProfileError(res.error);
+      } else if (res.profile) {
+        setCurrentProfile(res.profile);
+        setLanguage(editLanguage);
+        setUserLocation({
+          locality: editLocality.trim(),
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+        });
+        setAvatarImgError(false);
+        setShowEditProfileModal(false);
+        setStatusMessage('Profile details updated successfully! 🎉');
+        setTimeout(() => setStatusMessage(null), 3000);
+      }
+    } catch (err: any) {
+      setEditProfileError(err.message || 'Failed to update profile details.');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -260,36 +399,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
         </div>
       )}
 
-      {/* 1. Header Card (Photo with Upload Trigger, Name, Email, Location) */}
+      {/* 1. Header Card (Photo with Upload Trigger, Name, Email, Phone, Bio, Skills, UPI, Location) */}
       <div className="bg-white p-5 rounded-3xl border border-neutral-200/90 shadow-card relative overflow-hidden space-y-3.5">
-        <div className="flex items-center gap-3.5">
-          {/* Avatar with Upload Button */}
+        <div className="flex items-start gap-3.5">
+          {/* Avatar with Upload / Edit Button */}
           <div className="relative group shrink-0">
-            <div className="w-16 h-16 rounded-2xl bg-brand-yellow text-neutral-950 font-heading font-black text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden">
-              {currentProfile.avatar_url ? (
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
+              {currentProfile.avatar_url && !avatarImgError ? (
                 <img
                   src={currentProfile.avatar_url}
                   alt={currentProfile.full_name}
+                  onError={() => setAvatarImgError(true)}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                currentProfile.full_name.charAt(0).toUpperCase()
+                <span className="font-heading font-black text-xl text-neutral-950 tracking-wider">
+                  {getInitials(currentProfile.full_name)}
+                </span>
               )}
             </div>
 
             {/* Camera Overlay Trigger */}
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingAvatar}
-              title="Change Profile Photo"
+              onClick={handleOpenEditModal}
+              title="Change Profile Photo or Pick Avatar"
               className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-part-green text-white flex items-center justify-center shadow-md border-2 border-white hover:scale-110 active:scale-95 transition cursor-pointer"
             >
-              {isUploadingAvatar ? (
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Camera className="w-3 h-3" />
-              )}
+              <Camera className="w-3 h-3" />
             </button>
             <input
               ref={fileInputRef}
@@ -301,20 +438,34 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h2 className="font-heading font-black text-base text-neutral-900 truncate">
-                {currentProfile.full_name}
-              </h2>
-              {currentProfile.verification_status === 'verified' ? (
-                <span className="flex items-center gap-0.5 text-[10px] font-bold text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-full border border-part-green/20 shrink-0">
-                  <ShieldCheck className="w-3 h-3 fill-part-green text-white" />
-                  <span>Verified</span>
-                </span>
-              ) : (
-                <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.2 rounded-full shrink-0">
-                  Unverified
-                </span>
-              )}
+            <div className="flex items-center justify-between gap-1.5">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <h2 className="font-heading font-black text-base text-neutral-900 truncate">
+                  {currentProfile.full_name}
+                </h2>
+                {currentProfile.verification_status === 'verified' ? (
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-full border border-part-green/20 shrink-0">
+                    <ShieldCheck className="w-3 h-3 fill-part-green text-white" />
+                    <span>Verified</span>
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-neutral-400 bg-neutral-100 px-1.5 py-0.2 rounded-full shrink-0">
+                    Unverified
+                  </span>
+                )}
+              </div>
+
+              {/* Edit Profile Button */}
+              <button
+                type="button"
+                id="btn-edit-profile-header"
+                onClick={handleOpenEditModal}
+                className="px-2.5 py-1 rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 text-[11px] font-heading font-bold flex items-center gap-1 shadow-xs cursor-pointer active:scale-95 transition shrink-0"
+                title="Edit Profile & All Details"
+              >
+                <Pencil className="w-3 h-3 text-brand-yellow" />
+                <span>Edit</span>
+              </button>
             </div>
 
             {/* Verified Email */}
@@ -325,11 +476,29 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </p>
             )}
 
+            {/* Phone Number */}
+            <div className="text-[11px] text-neutral-600 font-medium truncate flex items-center gap-1 mt-0.5">
+              <Phone className="w-3 h-3 text-neutral-400 shrink-0" />
+              {currentProfile.phone ? (
+                <span className="font-mono">{currentProfile.phone}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleOpenEditModal}
+                  className="text-part-green font-semibold hover:underline cursor-pointer"
+                >
+                  + Add mobile number
+                </button>
+              )}
+            </div>
+
             {/* Location & Change Button */}
-            <div className="flex items-center justify-between gap-1 mt-1 text-xs">
+            <div className="flex items-center justify-between gap-1 mt-0.5 text-xs">
               <span className="text-[11px] text-neutral-600 font-semibold truncate flex items-center gap-1">
                 <MapPin className="w-3 h-3 text-part-green shrink-0" />
-                <span className="truncate">{userLocation.locality || 'Velachery, Chennai'}</span>
+                <span className="truncate">
+                  {currentProfile.general_location || userLocation.locality || 'Velachery, Chennai'}
+                </span>
               </span>
               <button
                 type="button"
@@ -340,6 +509,62 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Bio (if present) */}
+        {currentProfile.bio && (
+          <div className="bg-neutral-50 px-3 py-2 rounded-2xl border border-neutral-100 text-[11px] text-neutral-700 italic">
+            "{currentProfile.bio}"
+          </div>
+        )}
+
+        {/* Skills Chips (if present) */}
+        {currentProfile.skills && currentProfile.skills.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {currentProfile.skills.map((skill) => (
+              <span
+                key={skill}
+                className="text-[10px] font-semibold bg-neutral-100 text-neutral-700 px-2 py-0.5 rounded-lg border border-neutral-200/60"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* UPI & Availability Status Row */}
+        <div className="flex items-center justify-between text-[11px] pt-1 border-t border-neutral-100">
+          <div className="flex items-center gap-2">
+            {currentProfile.is_worker_available ? (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-part-green bg-part-green-mint/80 px-2 py-0.5 rounded-full border border-part-green/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-part-green animate-pulse" />
+                Available for Gigs
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-neutral-400" />
+                Off-Duty
+              </span>
+            )}
+            <span className="text-[10px] text-neutral-400 uppercase font-bold">
+              {currentProfile.preferred_language === 'ta' ? 'தமிழ்' : 'English'}
+            </span>
+          </div>
+
+          {currentProfile.upi_id ? (
+            <span className="text-[10px] text-neutral-500 font-mono flex items-center gap-1">
+              <QrCode className="w-3 h-3 text-part-green" />
+              <span>{currentProfile.upi_id}</span>
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleOpenEditModal}
+              className="text-[10px] text-neutral-400 hover:text-part-green underline"
+            >
+              + Add UPI handle
+            </button>
+          )}
         </div>
 
         {/* 2. DUAL ROLE SWITCHER (Task Poster vs Task Worker) */}
@@ -436,6 +661,27 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
       {/* 5. Account Navigation Menu */}
       <div className="bg-white rounded-3xl border border-neutral-200/90 shadow-card divide-y divide-neutral-100 overflow-hidden text-xs">
+        {/* Edit Profile & Details */}
+        <button
+          id="btn-profile-edit"
+          type="button"
+          onClick={handleOpenEditModal}
+          className="w-full p-4 flex items-center justify-between hover:bg-neutral-50 transition cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-brand-yellow/30 text-neutral-900 flex items-center justify-center">
+              <Pencil className="w-4 h-4 text-neutral-900" />
+            </div>
+            <div className="text-left">
+              <h4 className="font-heading font-bold text-neutral-900">Edit Profile & Details</h4>
+              <p className="text-[11px] text-neutral-500">
+                Name, mobile, bio, avatar, skills & UPI handle
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-neutral-400" />
+        </button>
+
         {/* My Tasks & Gigs */}
         <button
           id="btn-profile-my-tasks"
@@ -1234,6 +1480,396 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 Yes, Log Out
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 7. EDIT PROFILE & ALL DETAILS MODAL                            */}
+      {/* ============================================================== */}
+      {showEditProfileModal && (
+        <div className="fixed inset-0 bg-neutral-900/60 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 select-none">
+          <div className="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="px-5 pt-4 pb-3 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand-yellow flex items-center justify-center text-neutral-950 font-bold shadow-xs">
+                  <Pencil className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-black text-base text-neutral-900 tracking-tight">
+                    Edit Profile Details
+                  </h3>
+                  <p className="text-[11px] text-neutral-500">
+                    Update your identity, contact info, bio, avatar & skills
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                id="btn-close-edit-profile"
+                onClick={() => setShowEditProfileModal(false)}
+                className="w-8 h-8 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center text-neutral-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Scrollable Form Body */}
+            <form onSubmit={handleSaveProfile} className="overflow-y-auto p-5 space-y-5 flex-1">
+              {editProfileError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2 text-rose-700 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editProfileError}</span>
+                </div>
+              )}
+
+              {/* 1. Avatar Chooser & Upload */}
+              <div className="space-y-2.5">
+                <label className="text-xs font-heading font-bold text-neutral-800 flex items-center justify-between">
+                  <span>Profile Photo & Avatar</span>
+                  <span className="text-[11px] text-neutral-400 font-normal">Pick or upload photo</span>
+                </label>
+
+                <div className="flex items-center gap-4 bg-neutral-50 p-3.5 rounded-2xl border border-neutral-200/80">
+                  {/* Big Preview */}
+                  <div className="relative shrink-0">
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-yellow via-amber-300 to-amber-400 text-neutral-950 font-heading font-black text-2xl flex items-center justify-center shadow-xs border-2 border-brand-yellow-hover overflow-hidden select-none">
+                      {editAvatarUrl ? (
+                        <img
+                          src={editAvatarUrl}
+                          alt="Preview"
+                          onError={(e) => {
+                            (e.target as any).src = '';
+                            setEditAvatarUrl('');
+                          }}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="font-heading font-black text-xl text-neutral-950">
+                          {getInitials(editFullName || currentProfile.full_name)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploadingAvatar}
+                        className="px-3 py-1.5 bg-white border border-neutral-300 hover:bg-neutral-100 rounded-xl text-xs font-heading font-bold text-neutral-800 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-part-green" />
+                        <span>{isUploadingAvatar ? 'Uploading...' : 'Upload Photo'}</span>
+                      </button>
+                      {editAvatarUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setEditAvatarUrl('')}
+                          className="text-[11px] text-neutral-500 hover:text-rose-600 font-medium underline cursor-pointer"
+                        >
+                          Use Initials
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-neutral-500">
+                      JPG, PNG, WebP up to 3MB. Or pick a preset below.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Preset Avatars Chips */}
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-heading font-bold text-neutral-500 uppercase tracking-wider block">
+                    Curated Avatars
+                  </span>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    {PRESET_AVATARS.map((preset) => {
+                      const isSelected =
+                        (preset.id === 'initials' && !editAvatarUrl) ||
+                        (preset.url && editAvatarUrl === preset.url);
+
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => setEditAvatarUrl(preset.url)}
+                          className={`p-2 rounded-2xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                            isSelected
+                              ? 'bg-amber-50 border-brand-yellow ring-2 ring-brand-yellow/30'
+                              : 'bg-white border-neutral-200 hover:border-neutral-300'
+                          }`}
+                        >
+                          <span className="text-xl">{preset.emoji}</span>
+                          <span className="text-[10px] font-bold text-neutral-800 truncate w-full">
+                            {preset.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Personal Information */}
+              <div className="space-y-3 pt-2 border-t border-neutral-100">
+                <span className="text-xs font-heading font-black text-neutral-900 uppercase tracking-wider block">
+                  Personal Information
+                </span>
+
+                {/* Full Name */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                    <span>Full Name *</span>
+                    <span className="text-[10px] text-neutral-400">Shown to task posters & helpers</span>
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={editFullName}
+                      onChange={(e) => setEditFullName(e.target.value)}
+                      placeholder="e.g. Mahasuf Wazeed"
+                      className="w-full pl-10 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Mobile Phone Number */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                    <span>Mobile Phone Number</span>
+                    <span className="text-[10px] text-emerald-600 font-semibold">For task alerts & contact</span>
+                  </label>
+                  <div className="relative flex items-center">
+                    <div className="absolute left-3 flex items-center gap-1 text-xs font-bold text-neutral-700 border-r border-neutral-200 pr-2">
+                      <span>🇮🇳</span>
+                      <span>+91</span>
+                    </div>
+                    <input
+                      type="tel"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="98401 23456"
+                      maxLength={14}
+                      className="w-full pl-20 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                {/* Email (Verified badge) */}
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                    <span>Email Address</span>
+                    <span className="text-[10px] text-part-green font-bold flex items-center gap-0.5">
+                      <ShieldCheck className="w-3 h-3 fill-part-green text-white" />
+                      Verified
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="email"
+                      disabled
+                      value={currentProfile.email || ''}
+                      className="w-full pl-10 pr-3 py-2.5 bg-neutral-100 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-500 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Locality & App Language */}
+              <div className="space-y-3 pt-2 border-t border-neutral-100">
+                <span className="text-xs font-heading font-black text-neutral-900 uppercase tracking-wider block">
+                  Neighborhood & Preferences
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Primary Locality */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-neutral-700 flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-part-green" />
+                      <span>Chennai Locality</span>
+                    </label>
+                    <select
+                      value={
+                        CHENNAI_LOCALITIES.some((l) => `${l.name}, Chennai` === editLocality || l.name === editLocality)
+                          ? CHENNAI_LOCALITIES.find((l) => `${l.name}, Chennai` === editLocality || l.name === editLocality)?.name
+                          : CHENNAI_LOCALITIES[0].name
+                      }
+                      onChange={(e) => setEditLocality(`${e.target.value}, Chennai`)}
+                      className="w-full px-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900"
+                    >
+                      {CHENNAI_LOCALITIES.map((loc) => (
+                        <option key={loc.name} value={loc.name}>
+                          {loc.name} ({loc.pincode})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* App Language */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-neutral-700 flex items-center gap-1">
+                      <Globe className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Preferred Language</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5 bg-neutral-100 p-1 rounded-2xl border border-neutral-200 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setEditLanguage('en')}
+                        className={`py-1.5 rounded-xl font-heading font-bold transition cursor-pointer ${
+                          editLanguage === 'en'
+                            ? 'bg-white text-neutral-950 shadow-xs'
+                            : 'text-neutral-500 hover:text-neutral-900'
+                        }`}
+                      >
+                        English
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditLanguage('ta')}
+                        className={`py-1.5 rounded-xl font-heading font-bold transition cursor-pointer ${
+                          editLanguage === 'ta'
+                            ? 'bg-part-green text-white shadow-xs'
+                            : 'text-neutral-500 hover:text-neutral-900'
+                        }`}
+                      >
+                        தமிழ்
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Bio / Headline */}
+              <div className="space-y-2 pt-2 border-t border-neutral-100">
+                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                  <span>About You / Bio</span>
+                  <span className="text-[10px] text-neutral-400">Max 300 chars</span>
+                </label>
+                <textarea
+                  rows={2}
+                  maxLength={300}
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  placeholder="e.g. Reliable helper in South Chennai. Experienced in electrical repairs, fast grocery delivery & assembling furniture."
+                  className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white resize-none"
+                />
+              </div>
+
+              {/* 5. Helper Skills & Services */}
+              <div className="space-y-2 pt-2 border-t border-neutral-100">
+                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                  <span>Skills & Services (Helper Mode)</span>
+                  <span className="text-[10px] text-neutral-400">Select what you can help with</span>
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {POPULAR_SKILLS.map((skill) => {
+                    const isSelected = editSkills.includes(skill);
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setEditSkills(editSkills.filter((s) => s !== skill));
+                          } else {
+                            setEditSkills([...editSkills, skill]);
+                          }
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-xl font-medium border transition cursor-pointer flex items-center gap-1 ${
+                          isSelected
+                            ? 'bg-part-green text-white border-part-green shadow-xs'
+                            : 'bg-neutral-50 text-neutral-700 border-neutral-200 hover:bg-neutral-100'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3" />}
+                        <span>{skill}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 6. UPI ID for Payouts */}
+              <div className="space-y-2 pt-2 border-t border-neutral-100">
+                <label className="text-[11px] font-bold text-neutral-700 flex items-center justify-between">
+                  <span>UPI ID (For Earnings & Instant Payouts)</span>
+                  <span className="text-[10px] text-neutral-400 font-normal">GPay / PhonePe / Paytm</span>
+                </label>
+                <div className="relative">
+                  <QrCode className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={editUpiId}
+                    onChange={(e) => setEditUpiId(e.target.value)}
+                    placeholder="e.g. mobile@okhdfcbank or user@paytm"
+                    className="w-full pl-10 pr-3 py-2.5 bg-neutral-50 border border-neutral-200 rounded-2xl text-xs font-medium text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white font-mono"
+                  />
+                </div>
+                <p className="text-[10px] text-neutral-400">
+                  Task payments from posters will be transferred directly to this UPI address on gig completion.
+                </p>
+              </div>
+
+              {/* 7. Worker Availability Toggle */}
+              <div className="p-3 bg-neutral-50 rounded-2xl border border-neutral-200/80 flex items-center justify-between">
+                <div>
+                  <h5 className="font-heading font-bold text-xs text-neutral-900">
+                    Available for Nearby Gigs
+                  </h5>
+                  <p className="text-[10px] text-neutral-500">
+                    Allow nearby Chennai residents to ping and assign tasks to you
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditIsAvailable(!editIsAvailable)}
+                  className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${
+                    editIsAvailable ? 'bg-part-green' : 'bg-neutral-300'
+                  }`}
+                >
+                  <span
+                    className={`block w-4 h-4 rounded-full bg-white shadow-md transform transition-transform absolute top-1 ${
+                      editIsAvailable ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Form Action Buttons */}
+              <div className="pt-2 sticky bottom-0 bg-white pb-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditProfileModal(false)}
+                  className="w-1/3 py-3 px-4 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-heading font-bold text-xs rounded-2xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  id="btn-save-edit-profile"
+                  disabled={isSavingProfile}
+                  className="flex-1 py-3 px-4 bg-brand-yellow hover:bg-brand-yellow-hover text-neutral-950 font-heading font-black text-xs rounded-2xl shadow-yellow transition flex items-center justify-center gap-2 cursor-pointer active:scale-[0.99]"
+                >
+                  {isSavingProfile ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-neutral-900 border-t-transparent rounded-full animate-spin" />
+                      <span>Saving Details...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Profile Details</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

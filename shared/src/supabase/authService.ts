@@ -457,17 +457,36 @@ export const authService = {
       }
     }
 
-    const existing = mockStore.profiles.get(userId);
-    if (existing) {
-      const merged: Profile = {
-        ...existing,
-        ...sanitizedUpdates,
-      };
-      mockStore.profiles.set(userId, merged);
-      return { profile: merged };
-    }
+    const existing = mockStore.profiles.get(userId) || {
+      id: userId,
+      full_name: (sanitizedUpdates as any).full_name || 'PART User',
+      email: (sanitizedUpdates as any).email || null,
+      phone: (sanitizedUpdates as any).phone || null,
+      avatar_url: (sanitizedUpdates as any).avatar_url || null,
+      bio: null,
+      default_role: 'poster' as const,
+      preferred_language: 'en' as const,
+      city: 'Chennai',
+      general_location: 'Velachery, Chennai',
+      is_admin: false,
+      is_worker_available: true,
+      verification_status: 'verified' as const,
+      rating_as_worker: 5.0,
+      total_reviews_as_worker: 0,
+      completed_tasks_as_worker: 0,
+      rating_as_requester: 5.0,
+      total_reviews_as_requester: 0,
+      completed_tasks_as_requester: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-    return { profile: null, error: 'User profile not found.' };
+    const merged: Profile = {
+      ...existing,
+      ...sanitizedUpdates,
+    };
+    mockStore.profiles.set(userId, merged);
+    return { profile: merged };
   },
 
   /**

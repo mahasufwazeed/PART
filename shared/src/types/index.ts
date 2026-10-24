@@ -76,6 +76,8 @@ export interface Profile {
   rating_as_requester: number;
   total_reviews_as_requester: number;
   completed_tasks_as_requester: number;
+  skills?: string[];
+  upi_id?: string | null;
   created_at: string;
   updated_at: string;
 }

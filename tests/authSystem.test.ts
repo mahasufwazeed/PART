@@ -222,4 +222,41 @@ describe('PART – Complete Authentication System Tests', () => {
       expect(authService.getCurrentUser()).toBeNull();
     });
   });
+
+  describe('9. Complete Profile Details Editing & Personalization', () => {
+    it('successfully updates all profile fields including phone, bio, UPI, skills and locality', async () => {
+      const reg = await authService.register('mahasuf@part.in', 'Secret123', 'MAHASUF X2');
+      const userId = reg.profile!.id;
+
+      const updateRes = await authService.updateProfile(userId, {
+        full_name: 'Mahasuf Wazeed',
+        phone: '+91 98401 23456',
+        bio: 'Fast delivery runner and handyman in Velachery',
+        city: 'Chennai',
+        general_location: 'Velachery, Chennai',
+        preferred_language: 'ta',
+        avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        upi_id: 'mahasuf@okhdfcbank',
+        skills: ['📦 Delivery & Errands', '⚡ Electrical & Wiring'],
+        is_worker_available: true,
+      });
+
+      expect(updateRes.error).toBeUndefined();
+      expect(updateRes.profile).toBeDefined();
+      expect(updateRes.profile?.full_name).toBe('Mahasuf Wazeed');
+      expect(updateRes.profile?.phone).toBe('+91 98401 23456');
+      expect(updateRes.profile?.bio).toBe('Fast delivery runner and handyman in Velachery');
+      expect(updateRes.profile?.general_location).toBe('Velachery, Chennai');
+      expect(updateRes.profile?.preferred_language).toBe('ta');
+      expect(updateRes.profile?.upi_id).toBe('mahasuf@okhdfcbank');
+      expect(updateRes.profile?.skills).toContain('📦 Delivery & Errands');
+      expect(updateRes.profile?.is_worker_available).toBe(true);
+
+      // Verify persistence in store
+      const fetched = await authService.getProfile(userId);
+      expect(fetched?.full_name).toBe('Mahasuf Wazeed');
+      expect(fetched?.upi_id).toBe('mahasuf@okhdfcbank');
+    });
+  });
 });
+

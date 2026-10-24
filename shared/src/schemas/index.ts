@@ -58,11 +58,15 @@ export const onboardingProfileSchema = z.object({
 
 export const updateProfileSchema = z.object({
   full_name: z.string().min(2).max(60).optional(),
-  bio: z.string().max(300).optional().nullable(),
+  phone: z.string().optional().nullable(),
+  bio: z.string().max(500).optional().nullable(),
   city: z.string().min(2).optional(),
   general_location: z.string().max(100).optional().nullable(),
   preferred_language: z.enum(['en', 'ta']).optional(),
   is_worker_available: z.boolean().optional(),
+  avatar_url: z.string().optional().nullable(),
+  upi_id: z.string().optional().nullable(),
+  skills: z.array(z.string()).optional(),
 });
 
 export const createTaskSchema = z.object({
