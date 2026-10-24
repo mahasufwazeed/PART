@@ -9,7 +9,6 @@
     "admin"
   ],
   "scripts": {
-    "postinstall": "npm --workspace=mobile run build",
     "build": "npm --workspace=mobile run build",
     "start": "node server.js",
     "test": "vitest run",
