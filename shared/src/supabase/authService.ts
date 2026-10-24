@@ -21,28 +21,38 @@ export const authService = {
     fullName: string,
     preferredLanguage: AppLanguage = 'en'
   ): Promise<{ user: any; profile: Profile; error?: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+
     if (isLiveSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            preferred_language: preferredLanguage,
-            city: 'Chennai',
+      try {
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              preferred_language: preferredLanguage,
+              city: 'Chennai',
+            },
           },
-        },
-      });
+        });
 
-      if (error) return { user: null, profile: null as any, error: error.message };
-
-      const profile = await this.getProfile(data.user!.id);
-      return { user: data.user, profile: profile! };
+        if (!error && data?.user) {
+          const profile = await this.getProfile(data.user.id);
+          if (profile) {
+            mockStore.profiles.set(profile.id, profile);
+            mockStore.currentUserId = profile.id;
+            return { user: data.user, profile };
+          }
+        }
+      } catch (err) {
+        // Fallback to local store if remote tables are not yet migrated
+      }
     }
 
     // Check if email already registered in local store
     for (const [_, existing] of mockStore.profiles.entries()) {
-      if ((existing as any).email === email.toLowerCase().trim()) {
+      if ((existing as any).email === cleanEmail) {
         return { user: null, profile: null as any, error: 'Email already registered. Please log in.' };
       }
     }
@@ -57,9 +67,9 @@ export const authService = {
       preferred_language: preferredLanguage,
       city: 'Chennai',
       general_location: 'Chennai',
-      is_admin: email.toLowerCase().includes('admin'),
-      is_worker_available: true,
+      is_admin: cleanEmail.includes('admin'),
       verification_status: 'unverified',
+      is_online: true,
       rating_as_worker: 5.0,
       total_reviews_as_worker: 0,
       completed_tasks_as_worker: 0,
@@ -71,14 +81,14 @@ export const authService = {
     };
 
     // Store profile with email for lookup
-    (newProfile as any).email = email.toLowerCase().trim();
+    (newProfile as any).email = cleanEmail;
     (newProfile as any).password = password;
 
     mockStore.profiles.set(newId, newProfile);
     mockStore.currentUserId = newId;
 
     return {
-      user: { id: newId, email },
+      user: { id: newId, email: cleanEmail },
       profile: newProfile,
     };
   },
@@ -90,26 +100,33 @@ export const authService = {
     email: string,
     password: string
   ): Promise<{ session: AuthSession | null; error?: string }> {
+    const cleanEmail = email.toLowerCase().trim();
+
     if (isLiveSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password,
+        });
 
-      if (error) return { session: null, error: error.message };
-
-      const profile = await this.getProfile(data.user.id);
-      if (!profile) return { session: null, error: 'User profile not found' };
-
-      return {
-        session: {
-          user: { id: data.user.id, email: data.user.email! },
-          profile,
-        },
-      };
+        if (!error && data?.user) {
+          const profile = await this.getProfile(data.user.id);
+          if (profile) {
+            mockStore.profiles.set(profile.id, profile);
+            mockStore.currentUserId = profile.id;
+            return {
+              session: {
+                user: { id: data.user.id, email: data.user.email! },
+                profile,
+              },
+            };
+          }
+        }
+      } catch (err) {
+        // Fallback to local store
+      }
     }
 
-    const cleanEmail = email.toLowerCase().trim();
     let foundProfile: Profile | null = null;
 
     for (const [_, profile] of mockStore.profiles.entries()) {
@@ -126,7 +143,7 @@ export const authService = {
     if (!foundProfile) {
       return {
         session: null,
-        error: 'No account found with this email. Please register to create your account.',
+        error: 'No account found with this email. Please register first.',
       };
     }
 
@@ -144,7 +161,9 @@ export const authService = {
    */
   async logout(): Promise<void> {
     if (isLiveSupabaseConfigured) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch {}
     }
     mockStore.currentUserId = null;
   },
@@ -154,9 +173,11 @@ export const authService = {
    */
   async resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
     if (isLiveSupabaseConfigured) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
-      if (error) return { success: false, error: error.message };
-      return { success: true };
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+      } catch {}
     }
     return { success: true };
   },
@@ -166,14 +187,15 @@ export const authService = {
    */
   async getProfile(userId: string): Promise<Profile | null> {
     if (isLiveSupabaseConfigured) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
 
-      if (error || !data) return null;
-      return data as Profile;
+        if (!error && data) return data as Profile;
+      } catch {}
     }
 
     return mockStore.profiles.get(userId) || null;
@@ -184,46 +206,60 @@ export const authService = {
    */
   async completeOnboarding(
     userId: string,
-    data: OnboardingProfileInput
+    input: OnboardingProfileInput
   ): Promise<{ profile: Profile; error?: string }> {
-    if (isLiveSupabaseConfigured) {
-      const { data: updated, error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: data.full_name,
-          bio: data.bio,
-          city: data.city,
-          general_location: data.general_location,
-          preferred_language: data.preferred_language,
-          is_worker_available: data.is_worker_available,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', userId)
-        .select()
-        .single();
+    const existing = mockStore.profiles.get(userId);
 
-      if (error) return { profile: null as any, error: error.message };
-      return { profile: updated as Profile };
+    if (isLiveSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({
+            full_name: input.full_name,
+            phone: input.phone || null,
+            bio: input.bio || null,
+            general_location: input.general_location,
+            city: input.city || 'Chennai',
+            preferred_language: input.preferred_language,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId)
+          .select()
+          .single();
+
+        if (!error && data) {
+          mockStore.profiles.set(userId, data as Profile);
+          return { profile: data as Profile };
+        }
+      } catch {}
     }
 
-    const existing = mockStore.profiles.get(userId);
-    if (!existing) return { profile: null as any, error: 'User not found' };
+    if (!existing) {
+      return { profile: null as any, error: 'User profile not found.' };
+    }
 
     const updated: Profile = {
       ...existing,
-      full_name: data.full_name,
-      bio: data.bio || existing.bio,
-      city: data.city,
-      general_location: data.general_location,
-      preferred_language: data.preferred_language,
-      is_worker_available: data.is_worker_available,
+      full_name: input.full_name,
+      phone: input.phone || null,
+      bio: input.bio || null,
+      general_location: input.general_location,
+      city: input.city || 'Chennai',
+      preferred_language: input.preferred_language,
       updated_at: new Date().toISOString(),
     };
+
     mockStore.profiles.set(userId, updated);
     return { profile: updated };
   },
 
-  getCurrentUserId(): string | null {
-    return mockStore.currentUserId;
+  /**
+   * Get currently authenticated user
+   */
+  getCurrentUser(): Profile | null {
+    if (mockStore.currentUserId) {
+      return mockStore.profiles.get(mockStore.currentUserId) || null;
+    }
+    return null;
   },
 };

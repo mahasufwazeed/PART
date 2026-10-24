@@ -46,22 +46,29 @@ export const taskService = {
         .select()
         .single();
 
-      if (taskError) return { task: null as any, error: taskError.message };
+      if (taskError) {
+        if (!taskError.message.includes('Could not find the table') && taskError.code !== 'PGRST204') {
+          return { task: null as any, error: taskError.message };
+        }
+        // Fall back to local store if tables are not yet migrated on remote Supabase
+      } else {
+        const { error: locError } = await supabase.from('task_locations').insert({
+          task_id: taskData.id,
+          city: input.city,
+          locality: input.locality,
+          address_approximate: input.address_approximate,
+          address_exact: input.address_exact,
+          latitude: input.latitude,
+          longitude: input.longitude,
+          postal_code: input.postal_code,
+        });
 
-      const { error: locError } = await supabase.from('task_locations').insert({
-        task_id: taskData.id,
-        city: input.city,
-        locality: input.locality,
-        address_approximate: input.address_approximate,
-        address_exact: input.address_exact,
-        latitude: input.latitude,
-        longitude: input.longitude,
-        postal_code: input.postal_code,
-      });
+        if (locError && !locError.message.includes('Could not find the table')) {
+          return { task: null as any, error: locError.message };
+        }
 
-      if (locError) return { task: null as any, error: locError.message };
-
-      return { task: taskData as Task };
+        return { task: taskData as Task };
+      }
     }
 
     // Local Sandbox Store execution
@@ -136,46 +143,43 @@ export const taskService = {
         p_max_budget: maxBudget,
       });
 
-      if (error) {
-        console.error('get_nearby_tasks RPC error:', error);
-        return [];
+      if (!error && data) {
+        return data.map((row: any) => ({
+          id: row.task_id,
+          requester_id: row.requester_id,
+          category_id: row.category_id,
+          title: row.title,
+          description: row.description,
+          budget_inr: row.budget_inr,
+          estimated_duration_minutes: row.estimated_duration_minutes,
+          preferred_date: row.preferred_date,
+          preferred_time_window: row.preferred_time_window,
+          required_workers_count: row.required_workers_count,
+          assigned_workers_count: row.assigned_workers_count,
+          required_skills: [],
+          status: row.status,
+          created_at: row.created_at,
+          updated_at: row.created_at,
+          distance_km: row.distance_km,
+          category: {
+            id: row.category_id,
+            name_en: row.category_name_en,
+            name_ta: row.category_name_ta,
+            icon: row.category_icon,
+          } as any,
+          location: {
+            locality: row.locality,
+            address_approximate: row.address_approximate,
+            latitude: row.latitude,
+            longitude: row.longitude,
+          } as any,
+          requester: {
+            id: row.requester_id,
+            full_name: row.requester_name,
+            rating_as_requester: row.requester_rating,
+          } as any,
+        }));
       }
-
-      return (data || []).map((row: any) => ({
-        id: row.task_id,
-        requester_id: row.requester_id,
-        category_id: row.category_id,
-        title: row.title,
-        description: row.description,
-        budget_inr: row.budget_inr,
-        estimated_duration_minutes: row.estimated_duration_minutes,
-        preferred_date: row.preferred_date,
-        preferred_time_window: row.preferred_time_window,
-        required_workers_count: row.required_workers_count,
-        assigned_workers_count: row.assigned_workers_count,
-        required_skills: [],
-        status: row.status,
-        created_at: row.created_at,
-        updated_at: row.created_at,
-        distance_km: row.distance_km,
-        category: {
-          id: row.category_id,
-          name_en: row.category_name_en,
-          name_ta: row.category_name_ta,
-          icon: row.category_icon,
-        } as any,
-        location: {
-          locality: row.locality,
-          address_approximate: row.address_approximate,
-          latitude: row.latitude,
-          longitude: row.longitude,
-        } as any,
-        requester: {
-          id: row.requester_id,
-          full_name: row.requester_name,
-          rating_as_requester: row.requester_rating,
-        } as any,
-      }));
     }
 
     // Local Sandbox geospatial filtering
