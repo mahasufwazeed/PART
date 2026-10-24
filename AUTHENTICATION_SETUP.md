@@ -41,61 +41,54 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_ixrkqzZpp3txZ9ZrwBY63A_O4UNxG4f
 
 # Geoapify Geocoding & Routing API Key
 NEXT_PUBLIC_GEOAPIFY_API_KEY=2de1be4fe30a4f60a1b12fb57cb6a2f1
+
+# Google OAuth 2.0 Client Credentials
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>
+VITE_GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>
+EXPO_PUBLIC_GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>
+GOOGLE_CLIENT_ID=<YOUR_GOOGLE_CLIENT_ID>
+GOOGLE_CLIENT_SECRET=<YOUR_GOOGLE_CLIENT_SECRET>
 ```
 
-> **Security Note**: Never expose Supabase service-role keys to browser client bundles. The application exclusively uses publishable/anon keys alongside PostgreSQL Row Level Security (RLS) policies.
+> **Security Note**: Never expose Supabase service-role keys or OAuth client secrets in git-tracked files or browser bundles. Keep credentials strictly in local `.env` files (ignored by Git) and enter the Client Secret directly into your Supabase Dashboard.
 
 ---
 
 ## 4. Google Cloud Console OAuth 2.0 Configuration
 
-Follow these steps to configure Google OAuth credentials:
+Your Google OAuth Client should be configured as:
+* **Application type**: Web application
+* **Name**: `PART Web Client`
 
-### Step 1: Create OAuth 2.0 Client Credentials
-1. Go to the [Google Cloud Console](https://console.cloud.google.com/).
-2. Select or create your Google Cloud Project (e.g. `part-marketplace`).
-3. Navigate to **APIs & Services** > **OAuth consent screen**:
-   * Set User Type to **External**.
-   * App Name: `PART – People At Right Time`
-   * User support email: Select your admin email.
-   * Developer contact information: Enter your email.
-   * Save and continue.
-4. Navigate to **APIs & Services** > **Credentials**:
-   * Click **+ CREATE CREDENTIALS** > **OAuth client ID**.
-   * Application type: **Web application**.
-   * Name: `PART Web Client`.
+### Step 1: Ensure Authorized URIs in Google Cloud Console
+1. Go to [Google Cloud Console > Credentials](https://console.cloud.google.com/apis/credentials).
+2. Click on your OAuth 2.0 Web Client.
+3. Verify or add **Authorized JavaScript origins**:
+   * `http://localhost:3000` (Local Mobile Web App)
+   * `http://localhost:3001` (Admin Portal)
+   * `https://wfjbetswwgfyqmsoltva.supabase.co`
+4. Verify or add **Authorized redirect URIs (MANDATORY)**:
+   * `https://wfjbetswwgfyqmsoltva.supabase.co/auth/v1/callback`
+5. Click **Save**.
 
-### Step 2: Configure Authorized URIs
-* **Authorized JavaScript origins**:
-  * `http://localhost:3000` (Local Development)
-  * `http://localhost:3001` (Admin Portal)
-  * `https://wfjbetswwgfyqmsoltva.supabase.co`
-  * `https://your-production-domain.com` (Production)
-* **Authorized redirect URIs (MANDATORY)**:
-  * `https://wfjbetswwgfyqmsoltva.supabase.co/auth/v1/callback`
-
-> **CRITICAL**: The redirect URI in Google Cloud Console must point directly to your Supabase project callback: `https://<project-ref>.supabase.co/auth/v1/callback`. Do not enter `http://localhost:3000` as the Google redirect URI, as Supabase acts as the OAuth broker.
-
-5. Click **Create** and copy your **Client ID** and **Client Secret**.
+> **CRITICAL**: The redirect URI in Google Cloud Console must point directly to your Supabase project callback: `https://wfjbetswwgfyqmsoltva.supabase.co/auth/v1/callback`. Do not enter `http://localhost:3000` as the Google redirect URI, as Supabase acts as the secure OAuth broker.
 
 ---
 
-## 5. Supabase Dashboard Google Provider Configuration
+## 5. Supabase Dashboard Google Provider Configuration (1-Minute Step)
 
-1. Log in to your [Supabase Dashboard](https://supabase.com/dashboard/project/wfjbetswwgfyqmsoltva).
-2. Go to **Authentication** > **Providers**.
-3. Locate **Google** and expand the settings:
-   * Toggle **Enable Google provider** to `ON`.
-   * Paste your **Client ID** from Google Cloud Console.
-   * Paste your **Client Secret** from Google Cloud Console.
+To enable one-tap Google login:
+1. Open the [Supabase Providers Settings](https://supabase.com/dashboard/project/wfjbetswwgfyqmsoltva/auth/providers).
+2. Locate **Google** in the list and expand it:
+   * Toggle **Enable Google provider** to **ON**.
+   * **Client ID**: Paste your Google OAuth Client ID.
+   * **Client Secret**: Paste your Google OAuth Client Secret.
    * Click **Save**.
-4. Go to **Authentication** > **URL Configuration**:
-   * **Site URL**: `http://localhost:3000` (or your production URL)
-   * **Redirect URLs**: Add the following URLs:
+3. Go to **Authentication** > **URL Configuration** in the left sidebar:
+   * **Site URL**: `http://localhost:3000`
+   * **Redirect URLs**: Add:
      * `http://localhost:3000/auth/callback`
      * `http://localhost:3000/update-password`
-     * `https://your-production-domain.com/auth/callback`
-     * `https://your-production-domain.com/update-password`
    * Click **Save**.
 
 ---

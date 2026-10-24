@@ -21,6 +21,17 @@ export const AuthCallbackScreen: React.FC<AuthCallbackScreenProps> = ({
 
     const handleCallback = async () => {
       try {
+        if (typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          const code = url.searchParams.get('code');
+          if (code) {
+            const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+            if (exchangeError) {
+              console.warn('PKCE exchange:', exchangeError.message);
+            }
+          }
+        }
+
         // Exchange session or read current session from URL hash / storage
         const { data: sessionData, error: sessionError } =
           await supabase.auth.getSession();
