@@ -1,0 +1,23 @@
+{
+  "name": "part-hyperlocal-marketplace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PART – People At Right Time: Hyperlocal Task Marketplace for Chennai & Beyond",
+  "workspaces": [
+    "shared",
+    "mobile",
+    "admin"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:mobile": "npm --workspace=mobile run start",
+    "dev:admin": "npm --workspace=admin run dev",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

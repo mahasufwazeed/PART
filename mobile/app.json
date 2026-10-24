@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "PART - People At Right Time",
+    "slug": "part-hyperlocal-marketplace",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "partapp",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4338CA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.part.marketplace",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "PART uses your approximate location to show you nearby tasks and requests in Chennai."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4338CA"
+      },
+      "package": "com.part.marketplace",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "part-hyperlocal-marketplace"
+      }
+    }
+  }
+}
