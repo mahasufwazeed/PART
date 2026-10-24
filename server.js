@@ -21,6 +21,20 @@ const MIME_TYPES = {
   '.ttf': 'font/ttf',
 };
 
+const INDEX_FILE = path.join(DIST_DIR, 'index.html');
+
+// Self-healing: If dist files are missing, run the build automatically
+if (!fs.existsSync(INDEX_FILE)) {
+  console.log('Production assets not found in mobile/dist. Triggering build...');
+  try {
+    const { execSync } = require('child_process');
+    execSync('npm --workspace=mobile run build', { stdio: 'inherit' });
+    console.log('Build completed successfully.');
+  } catch (err) {
+    console.error('Auto-build failed:', err);
+  }
+}
+
 const server = http.createServer((req, res) => {
   const urlPath = req.url.split('?')[0];
   let filePath = path.join(DIST_DIR, urlPath === '/' ? 'index.html' : urlPath);
