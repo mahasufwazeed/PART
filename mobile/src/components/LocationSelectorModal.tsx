@@ -124,47 +124,79 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Real GPS Geolocation Trigger
+  // Real GPS Geolocation Trigger with multi-tier fallback
   const handleDetectGPS = () => {
-    if (!navigator.geolocation) {
-      setErrorMessage('GPS Geolocation is not supported by this browser.');
-      return;
-    }
-
     setIsDetectingGps(true);
     setErrorMessage(null);
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        try {
-          const rev = await geoapifyService.reverseGeocode(latitude, longitude);
-          setUserLocation({
-            locality: rev.formatted,
-            latitude,
-            longitude,
+    const applyResolvedLocation = async (lat: number, lng: number, defaultName?: string) => {
+      try {
+        const rev = await geoapifyService.reverseGeocode(lat, lng);
+        setUserLocation({
+          locality: rev.formatted || defaultName || 'Chennai',
+          latitude: lat,
+          longitude: lng,
+        });
+
+        if (currentProfile?.id) {
+          await locationService.updateUserProfileLocation(currentProfile.id, {
+            general_location: rev.formatted || defaultName || 'Chennai',
+            city: rev.locality || 'Chennai',
           });
-          setIsDetectingGps(false);
-          onClose();
-        } catch {
-          setUserLocation({
-            locality: `${latitude.toFixed(4)}, ${longitude.toFixed(4)}, Chennai`,
-            latitude,
-            longitude,
-          });
-          setIsDetectingGps(false);
-          onClose();
         }
-      },
-      (err) => {
+      } catch {
+        setUserLocation({
+          locality: defaultName || `${lat.toFixed(4)}, ${lng.toFixed(4)}, Chennai`,
+          latitude: lat,
+          longitude: lng,
+        });
+      } finally {
         setIsDetectingGps(false);
-        if (err.code === err.PERMISSION_DENIED) {
-          setErrorMessage('Location permission denied. Please search or pick on map.');
-        } else {
-          setErrorMessage('Unable to determine GPS location. Please try searching.');
+        onClose();
+      }
+    };
+
+    const tryIpFallback = async () => {
+      try {
+        const ipLoc = await geoapifyService.getIpLocation();
+        if (ipLoc) {
+          await applyResolvedLocation(ipLoc.latitude, ipLoc.longitude, ipLoc.locality);
+          return;
         }
+      } catch (err) {
+        console.warn('IP location detection error:', err);
+      }
+
+      // Default Chennai fallback if all network geolocation fails
+      await applyResolvedLocation(12.9815, 80.218, 'Velachery, Chennai');
+    };
+
+    if (!navigator.geolocation) {
+      tryIpFallback();
+      return;
+    }
+
+    // Tier 1: Try high accuracy GPS (4s timeout)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        applyResolvedLocation(pos.coords.latitude, pos.coords.longitude);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      (highErr) => {
+        console.warn('High accuracy GPS error:', highErr.message, 'Trying network geolocation...');
+        // Tier 2: Try standard accuracy Wi-Fi/cellular triangulation (3s timeout)
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            applyResolvedLocation(pos.coords.latitude, pos.coords.longitude);
+          },
+          (lowErr) => {
+            console.warn('Low accuracy GPS error:', lowErr.message, 'Falling back to IP geolocation...');
+            // Tier 3: Geoapify IP-based geolocation fallback
+            tryIpFallback();
+          },
+          { enableHighAccuracy: false, timeout: 3000, maximumAge: 300000 }
+        );
+      },
+      { enableHighAccuracy: true, timeout: 4000, maximumAge: 60000 }
     );
   };
 
@@ -296,47 +328,59 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
 
           {/* Action Row: Use Current Location & Set on Map */}
           {!isMapPickerOpen && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {/* Primary GPS Location Button */}
-              <button
-                type="button"
-                onClick={handleDetectGPS}
-                disabled={isDetectingGps}
-                className="w-full p-3 rounded-2xl border border-part-green/40 bg-emerald-50/70 hover:bg-emerald-50 text-neutral-900 flex items-center gap-3 transition shadow-xs cursor-pointer group"
-              >
-                <div className="w-9 h-9 rounded-xl bg-part-green text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                  <Crosshair
-                    className={`w-4 h-4 ${isDetectingGps ? 'animate-spin' : ''}`}
-                  />
-                </div>
-                <div className="text-left flex-1 min-w-0">
-                  <span className="font-heading font-black text-xs text-part-green block">
-                    {isDetectingGps ? 'Detecting GPS...' : 'Use Current Location'}
-                  </span>
-                  <span className="text-[10px] text-neutral-500 truncate block">
-                    Using Device GPS
-                  </span>
-                </div>
-              </button>
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* Primary GPS Location Button */}
+                <button
+                  id="btn-use-current-location"
+                  type="button"
+                  onClick={handleDetectGPS}
+                  disabled={isDetectingGps}
+                  className="w-full p-3 rounded-2xl border border-part-green/40 bg-emerald-50/70 hover:bg-emerald-50 text-neutral-900 flex items-center gap-3 transition shadow-xs cursor-pointer group active:scale-[0.98]"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-part-green text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Crosshair
+                      className={`w-4 h-4 ${isDetectingGps ? 'animate-spin' : ''}`}
+                    />
+                  </div>
+                  <div className="text-left flex-1 min-w-0">
+                    <span className="font-heading font-black text-xs text-part-green block">
+                      {isDetectingGps ? 'Detecting Location...' : 'Use Current Location'}
+                    </span>
+                    <span className="text-[10px] text-neutral-500 truncate block">
+                      {isDetectingGps ? 'Acquiring GPS / Network...' : 'Using Device GPS'}
+                    </span>
+                  </div>
+                </button>
 
-              {/* Set Pin on Map Button */}
-              <button
-                type="button"
-                onClick={() => setIsMapPickerOpen(true)}
-                className="w-full p-3 rounded-2xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900 flex items-center gap-3 transition shadow-xs cursor-pointer group"
-              >
-                <div className="w-9 h-9 rounded-xl bg-brand-yellow text-neutral-900 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                  <Navigation2 className="w-4 h-4 fill-neutral-900" />
+                {/* Set Pin on Map Button */}
+                <button
+                  id="btn-set-on-map"
+                  type="button"
+                  onClick={() => setIsMapPickerOpen(true)}
+                  className="w-full p-3 rounded-2xl border border-neutral-200 bg-neutral-50 hover:bg-neutral-100 text-neutral-900 flex items-center gap-3 transition shadow-xs cursor-pointer group active:scale-[0.98]"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-brand-yellow text-neutral-900 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                    <Navigation2 className="w-4 h-4 fill-neutral-900" />
+                  </div>
+                  <div className="text-left flex-1 min-w-0">
+                    <span className="font-heading font-bold text-xs text-neutral-900 block">
+                      Set on Map
+                    </span>
+                    <span className="text-[10px] text-neutral-500 truncate block">
+                      Drag pin to exact spot
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Error or Permission Alert Notice */}
+              {errorMessage && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2 animate-fade-in">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>{errorMessage}</span>
                 </div>
-                <div className="text-left flex-1 min-w-0">
-                  <span className="font-heading font-bold text-xs text-neutral-900 block">
-                    Set on Map
-                  </span>
-                  <span className="text-[10px] text-neutral-500 truncate block">
-                    Drag pin to exact spot
-                  </span>
-                </div>
-              </button>
+              )}
             </div>
           )}
 

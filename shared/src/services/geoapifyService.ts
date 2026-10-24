@@ -199,6 +199,34 @@ export const geoapifyService = {
   },
 
   /**
+   * Automatic IP-based Geolocation fallback
+   */
+  async getIpLocation(): Promise<{ locality: string; latitude: number; longitude: number } | null> {
+    try {
+      const apiKey = getGeoapifyApiKey();
+      const res = await fetch(`https://api.geoapify.com/v1/ipinfo?apiKey=${apiKey}`);
+      if (!res.ok) throw new Error(`IP info lookup failed: ${res.statusText}`);
+      const data = await res.json();
+      const lat = data?.location?.latitude;
+      const lng = data?.location?.longitude;
+      const city = data?.city?.name || 'Chennai';
+      const state = data?.state?.name || 'Tamil Nadu';
+
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        const rev = await this.reverseGeocode(lat, lng);
+        return {
+          locality: rev.formatted || `${city}, ${state}`,
+          latitude: lat,
+          longitude: lng,
+        };
+      }
+    } catch (err) {
+      console.warn('IP location detection fallback:', err);
+    }
+    return null;
+  },
+
+  /**
    * Geoapify Routing API: Navigation route between Worker and Task
    */
   async calculateRoute(
