@@ -9,9 +9,12 @@ import {
   SavedAddress,
   Review,
   CHENNAI_LOCALITIES,
+  geoapifyService,
+  calculateHaversineDistanceKm,
 } from '@part/shared';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
 import { CollegeSelectorModal } from '../components/CollegeSelectorModal';
+import PartLeafletMap from '../components/map/PartLeafletMap';
 import {
   ShieldCheck,
   Star,
@@ -52,6 +55,10 @@ import {
   User,
   QrCode,
   GraduationCap,
+  Navigation,
+  Crosshair,
+  Loader2,
+  Compass,
 } from 'lucide-react';
 
 const PRESET_AVATARS = [
@@ -100,6 +107,8 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     setTab,
     setUserLocation,
     userLocation,
+    activeLocation,
+    setActiveLocation,
     logout,
     selectedCollegeId,
     selectedCollegeName,
@@ -163,6 +172,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
   const [newAddrLabel, setNewAddrLabel] = useState<'Home' | 'Work' | 'Other'>('Home');
   const [newAddrLine, setNewAddrLine] = useState('');
   const [newAddrLocality, setNewAddrLocality] = useState(CHENNAI_LOCALITIES[0].name);
+  const [newAddrCoords, setNewAddrCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
 
   // FAQ Accordion State
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
@@ -350,14 +365,118 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
     }
   };
 
-  // Handle Save New Address
+  // Detect live location via GPS and auto-fill address details
+  const handleDetectLiveLocation = (openForm = true) => {
+    if (!navigator.geolocation) {
+      setGpsError('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setIsDetectingGps(true);
+    setGpsError(null);
+    if (openForm) {
+      setIsAddingAddress(true);
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setGpsAccuracy(Math.round(accuracy));
+        setNewAddrCoords({ latitude, longitude });
+
+        try {
+          setIsReverseGeocoding(true);
+          const rev = await geoapifyService.reverseGeocode(latitude, longitude);
+
+          // Find closest Chennai locality
+          let closestLocality = CHENNAI_LOCALITIES[0].name;
+          let minDistance = Infinity;
+          for (const loc of CHENNAI_LOCALITIES) {
+            const dist = calculateHaversineDistanceKm(
+              latitude,
+              longitude,
+              loc.latitude,
+              loc.longitude
+            );
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestLocality = loc.name;
+            }
+          }
+
+          setNewAddrLocality(closestLocality);
+
+          // Format clean street / building address
+          let street = rev.formatted || '';
+          if (street) {
+            const parts = street.split(',').map((p) => p.trim());
+            street = parts.slice(0, Math.max(1, parts.length - 2)).join(', ');
+          }
+
+          setNewAddrLine(street || `Near ${closestLocality}`);
+          setStatusMessage('Live GPS location detected!');
+          setTimeout(() => setStatusMessage(null), 3000);
+        } catch (err) {
+          console.warn('Reverse geocode error:', err);
+        } finally {
+          setIsReverseGeocoding(false);
+          setIsDetectingGps(false);
+        }
+      },
+      (err) => {
+        setIsDetectingGps(false);
+        if (err.code === 1) {
+          setGpsError('Location permission denied. Please allow location access or choose manually.');
+        } else if (err.code === 3) {
+          setGpsError('GPS acquisition timed out. Please try again.');
+        } else {
+          setGpsError('Unable to acquire live GPS location.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  };
+
+  // Handle dragging or clicking pin on the interactive Leaflet map
+  const handleMapPinMoved = async (lat: number, lng: number) => {
+    setNewAddrCoords({ latitude: lat, longitude: lng });
+    try {
+      setIsReverseGeocoding(true);
+      const rev = await geoapifyService.reverseGeocode(lat, lng);
+
+      // Find closest Chennai locality
+      let closestLocality = CHENNAI_LOCALITIES[0].name;
+      let minDistance = Infinity;
+      for (const loc of CHENNAI_LOCALITIES) {
+        const dist = calculateHaversineDistanceKm(lat, lng, loc.latitude, loc.longitude);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestLocality = loc.name;
+        }
+      }
+
+      setNewAddrLocality(closestLocality);
+      if (rev.formatted) {
+        const parts = rev.formatted.split(',').map((p) => p.trim());
+        const street = parts.slice(0, Math.max(1, parts.length - 2)).join(', ');
+        setNewAddrLine(street || rev.formatted);
+      }
+    } catch (err) {
+      console.warn('Map pin reverse geocode error:', err);
+    } finally {
+      setIsReverseGeocoding(false);
+    }
+  };
+
+  // Handle Save New Address with live coordinates
   const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newAddrLine.trim()) return;
 
     const localityObj = CHENNAI_LOCALITIES.find((l) => l.name === newAddrLocality);
-    const lat = localityObj?.latitude || 12.9815;
-    const lng = localityObj?.longitude || 80.218;
+    // Use exact GPS coordinates if available, otherwise fallback to locality center
+    const lat = newAddrCoords?.latitude ?? localityObj?.latitude ?? 12.9815;
+    const lng = newAddrCoords?.longitude ?? localityObj?.longitude ?? 80.218;
 
     const res = await locationService.saveAddress(currentProfile.id, {
       label: newAddrLabel,
@@ -372,7 +491,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       const updated = await locationService.getSavedAddresses(currentProfile.id);
       setSavedAddresses(updated);
       setIsAddingAddress(false);
+      setShowMapPicker(false);
       setNewAddrLine('');
+      setNewAddrCoords(null);
+      setGpsAccuracy(null);
+      setGpsError(null);
       setStatusMessage('New address saved!');
       setTimeout(() => setStatusMessage(null), 2500);
     }
@@ -391,6 +514,11 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
       locality: addr.locality || addr.address_line,
       latitude: addr.latitude,
       longitude: addr.longitude,
+    });
+    setActiveLocation?.({
+      coordinates: { latitude: addr.latitude, longitude: addr.longitude },
+      label: `${addr.address_line}, ${addr.locality}`,
+      source: 'saved_address',
     });
     setShowSavedAddressesModal(false);
     setStatusMessage(`Active location set to ${addr.locality.split(',')[0]}!`);
@@ -942,60 +1070,225 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                 })}
               </div>
 
+              {/* Quick Action: Set Address from Live Location */}
+              {!isAddingAddress && (
+                <button
+                  type="button"
+                  onClick={() => handleDetectLiveLocation(true)}
+                  disabled={isDetectingGps}
+                  className="w-full p-3 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 text-left transition shadow-2xs group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-part-green text-white flex items-center justify-center shrink-0 shadow-xs group-hover:scale-105 transition">
+                      {isDetectingGps ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      ) : (
+                        <Navigation className="w-4 h-4 text-brand-yellow" />
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-heading font-extrabold text-xs text-neutral-900">
+                          Set Address from Live Location
+                        </span>
+                        <span className="text-[9px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-1.5 py-0.2 rounded-md">
+                          Live GPS
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-600 truncate mt-0.5">
+                        Auto-detect street & locality using your phone's GPS
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-part-green font-heading font-bold text-xs shrink-0">
+                    <span>{isDetectingGps ? 'Locating...' : 'Set Now'}</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </button>
+              )}
+
               {/* Add Address Form Toggle */}
               {!isAddingAddress ? (
                 <button
                   type="button"
-                  onClick={() => setIsAddingAddress(true)}
-                  className="w-full py-3 border-2 border-dashed border-neutral-300 hover:border-part-green text-neutral-700 hover:text-part-green rounded-2xl font-heading font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  onClick={() => {
+                    setIsAddingAddress(true);
+                    setShowMapPicker(false);
+                  }}
+                  className="w-full py-2.5 border-2 border-dashed border-neutral-300 hover:border-part-green text-neutral-700 hover:text-part-green rounded-2xl font-heading font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add New Address</span>
+                  <span>Add Address Manually</span>
                 </button>
               ) : (
                 <form onSubmit={handleSaveNewAddress} className="bg-neutral-50 p-4 rounded-2xl border border-neutral-200 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-heading font-bold text-xs text-neutral-900">
-                      Add Address Details
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-heading font-bold text-xs text-neutral-900">
+                        Add Address Details
+                      </span>
+                      {newAddrCoords && (
+                        <span className="text-[9px] font-black uppercase tracking-wider text-part-green bg-part-green-mint px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-part-green animate-pulse" />
+                          Live GPS Synced
+                        </span>
+                      )}
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setIsAddingAddress(false)}
-                      className="text-neutral-400 hover:text-neutral-600 text-xs"
+                      onClick={() => {
+                        setIsAddingAddress(false);
+                        setShowMapPicker(false);
+                        setGpsError(null);
+                      }}
+                      className="text-neutral-400 hover:text-neutral-600 text-xs cursor-pointer font-medium"
                     >
                       Cancel
                     </button>
                   </div>
 
+                  {/* Live GPS & Map Action Bar */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDetectLiveLocation(false)}
+                      disabled={isDetectingGps}
+                      className="p-2.5 bg-emerald-100/70 hover:bg-emerald-200/80 text-part-green-dark border border-emerald-300/80 rounded-xl text-left transition flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                    >
+                      {isDetectingGps ? (
+                        <Loader2 className="w-4 h-4 animate-spin shrink-0 text-part-green" />
+                      ) : (
+                        <Crosshair className="w-4 h-4 shrink-0 text-part-green" />
+                      )}
+                      <div className="min-w-0">
+                        <span className="font-heading font-bold text-[11px] block leading-tight truncate">
+                          {isDetectingGps ? 'Detecting...' : 'Use Live GPS'}
+                        </span>
+                        <span className="text-[9px] text-emerald-700/80 block leading-none">
+                          Auto-fill address
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowMapPicker(!showMapPicker)}
+                      className={`p-2.5 border rounded-xl text-left transition flex items-center gap-2 cursor-pointer ${
+                        showMapPicker
+                          ? 'bg-part-green text-white border-part-green shadow-xs'
+                          : 'bg-white hover:bg-neutral-100 border-neutral-200 text-neutral-700'
+                      }`}
+                    >
+                      <MapPin className={`w-4 h-4 shrink-0 ${showMapPicker ? 'text-brand-yellow' : 'text-neutral-500'}`} />
+                      <div className="min-w-0">
+                        <span className="font-heading font-bold text-[11px] block leading-tight truncate">
+                          {showMapPicker ? 'Close Map' : 'Pick on Map'}
+                        </span>
+                        <span className={`text-[9px] block leading-none ${showMapPicker ? 'text-emerald-100' : 'text-neutral-400'}`}>
+                          Pinpoint location
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* GPS Feedback & Accuracy Badge */}
+                  {newAddrCoords && (
+                    <div className="bg-emerald-50 border border-emerald-200/90 rounded-xl p-2 flex items-center justify-between text-[11px] text-emerald-900 shadow-2xs">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-part-green shrink-0" />
+                        <span className="truncate font-medium">
+                          {newAddrCoords.latitude.toFixed(4)}, {newAddrCoords.longitude.toFixed(4)}
+                          {gpsAccuracy ? ` (±${gpsAccuracy}m accuracy)` : ''}
+                        </span>
+                      </div>
+                      {isReverseGeocoding && (
+                        <span className="text-[10px] text-emerald-700 flex items-center gap-1 font-bold shrink-0">
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                          Geocoding...
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* GPS Error Message */}
+                  {gpsError && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-2 text-xs text-amber-800 flex items-start gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <span className="text-[11px] leading-tight">{gpsError}</span>
+                    </div>
+                  )}
+
+                  {/* Embedded Interactive Leaflet Pin Picker Map */}
+                  {showMapPicker && (
+                    <div className="space-y-1 rounded-2xl overflow-hidden border border-neutral-200/90 shadow-sm bg-neutral-100">
+                      <div className="h-[210px] w-full relative">
+                        <PartLeafletMap
+                          latitude={newAddrCoords?.latitude ?? userLocation.latitude ?? 12.9815}
+                          longitude={newAddrCoords?.longitude ?? userLocation.longitude ?? 80.218}
+                          isPickerMode={true}
+                          onPickerLocationChange={handleMapPinMoved}
+                          zoom={15}
+                          userGpsCoords={
+                            userLocation.latitude && userLocation.longitude
+                              ? { latitude: userLocation.latitude, longitude: userLocation.longitude }
+                              : null
+                          }
+                        />
+                      </div>
+                      <div className="p-2 bg-white text-[11px] text-neutral-600 flex items-center justify-between border-t border-neutral-100">
+                        <span className="flex items-center gap-1 text-[10.5px] truncate">
+                          <MapPin className="w-3 h-3 text-part-green shrink-0" />
+                          <span className="truncate">{newAddrLine || 'Drag marker or click map'}</span>
+                        </span>
+                        <span className="text-[9px] font-black text-part-green uppercase bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">
+                          Tap or drag pin
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Label selector */}
-                  <div className="flex items-center gap-2">
-                    {(['Home', 'Work', 'Other'] as const).map((lbl) => (
-                      <button
-                        key={lbl}
-                        type="button"
-                        onClick={() => setNewAddrLabel(lbl)}
-                        className={`px-3 py-1 rounded-xl text-xs font-heading font-bold transition ${
-                          newAddrLabel === lbl
-                            ? 'bg-part-green text-white shadow-xs'
-                            : 'bg-white border border-neutral-200 text-neutral-600'
-                        }`}
-                      >
-                        {lbl}
-                      </button>
-                    ))}
+                  <div>
+                    <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
+                      Address Label
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {(['Home', 'Work', 'Other'] as const).map((lbl) => (
+                        <button
+                          key={lbl}
+                          type="button"
+                          onClick={() => setNewAddrLabel(lbl)}
+                          className={`flex-1 py-1.5 rounded-xl text-xs font-heading font-bold transition cursor-pointer ${
+                            newAddrLabel === lbl
+                              ? 'bg-part-green text-white shadow-xs'
+                              : 'bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-100'
+                          }`}
+                        >
+                          {lbl === 'Home' ? '🏠 Home' : lbl === 'Work' ? '💼 Work' : '📍 Other'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="text-[10px] font-bold text-neutral-500 uppercase block mb-1">
-                      Street / Apartment / Door No.
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-bold text-neutral-500 uppercase block">
+                        Street / Apartment / Door No.
+                      </label>
+                      {newAddrCoords && (
+                        <span className="text-[9px] text-part-green font-bold flex items-center gap-0.5">
+                          <Check className="w-2.5 h-2.5" />
+                          GPS auto-filled
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       required
                       placeholder="e.g. No. 42, 3rd Cross, Nehru Nagar"
                       value={newAddrLine}
                       onChange={(e) => setNewAddrLine(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green"
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green font-medium"
                     />
                   </div>
 
@@ -1005,8 +1298,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
                     </label>
                     <select
                       value={newAddrLocality}
-                      onChange={(e) => setNewAddrLocality(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green"
+                      onChange={(e) => {
+                        setNewAddrLocality(e.target.value);
+                        const loc = CHENNAI_LOCALITIES.find((l) => l.name === e.target.value);
+                        if (loc && !newAddrCoords) {
+                          setNewAddrCoords({ latitude: loc.latitude, longitude: loc.longitude });
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-none focus:ring-1 focus:ring-part-green font-medium cursor-pointer"
                     >
                       {CHENNAI_LOCALITIES.map((loc) => (
                         <option key={loc.name} value={loc.name}>
@@ -1018,9 +1317,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 bg-part-green text-white font-heading font-black text-xs rounded-xl shadow-green hover:bg-part-green-dark transition cursor-pointer"
+                    className="w-full py-2.5 bg-part-green text-white font-heading font-black text-xs rounded-xl shadow-green hover:bg-part-green-dark transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99]"
                   >
-                    Save Address
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Address</span>
                   </button>
                 </form>
               )}
