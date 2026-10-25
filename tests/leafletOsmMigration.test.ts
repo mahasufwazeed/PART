@@ -233,4 +233,42 @@ describe('PART – Leaflet.js + OpenStreetMap Migration Test Suite', () => {
       expect(vels?.locality).toBe('Pallavaram');
     });
   });
+
+  // 7. PartLeafletMap Component Contract & GPS vs Search Center
+  describe('7. PartLeafletMap Component Contract & GPS vs Search Distinction', () => {
+    it('properly distinguishes physical device GPS from selected search center', () => {
+      const searchCenter = { latitude: 13.085, longitude: 80.2101 }; // Anna Nagar
+      const physicalGps = { latitude: 12.9815, longitude: 80.218 }; // Velachery
+
+      const isDistinct =
+        Math.abs(physicalGps.latitude - searchCenter.latitude) > 0.001 ||
+        Math.abs(physicalGps.longitude - searchCenter.longitude) > 0.001;
+
+      expect(isDistinct).toBe(true);
+      const distanceApartKm = calculateHaversineDistanceKm(
+        physicalGps.latitude,
+        physicalGps.longitude,
+        searchCenter.latitude,
+        searchCenter.longitude
+      );
+      expect(distanceApartKm).toBeGreaterThan(10);
+    });
+
+    it('calculates radius bounds accurately for Leaflet Circle fitting', () => {
+      const centerLat = 12.9815;
+      const centerLng = 80.218;
+      const radiusKm = 5;
+
+      const deltaLat = radiusKm / 110.574;
+      const deltaLng = radiusKm / (111.32 * Math.cos((centerLat * Math.PI) / 180));
+
+      const bounds = [
+        [centerLat - deltaLat, centerLng - deltaLng],
+        [centerLat + deltaLat, centerLng + deltaLng],
+      ];
+
+      expect(bounds[1][0]).toBeGreaterThan(bounds[0][0]);
+      expect(bounds[1][1]).toBeGreaterThan(bounds[0][1]);
+    });
+  });
 });

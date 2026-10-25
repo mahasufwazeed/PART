@@ -8,7 +8,7 @@ import {
   DISTANCE_FILTER_OPTIONS_KM,
 } from '@part/shared';
 import { TaskCard } from '../components/TaskCard';
-import { LeafletMapView } from '../components/LeafletMapView';
+import PartLeafletMap from '../components/map/PartLeafletMap';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
 import { SearchBar } from '../components/SearchBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
@@ -320,14 +320,19 @@ export const ExploreScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Leaflet + OpenStreetMap Map */}
-            <LeafletMapView
+            {/* PartLeafletMap OpenStreetMap Map */}
+            <PartLeafletMap
               tasks={tasks}
-              centerLat={currentCoords.latitude}
-              centerLng={currentCoords.longitude}
+              latitude={currentCoords.latitude}
+              longitude={currentCoords.longitude}
               radiusKm={selectedRadiusKm}
               onRadiusChange={(km) => setSelectedRadiusKm(km)}
               onTaskSelect={(task) => openTaskDetails(task.id)}
+              userGpsCoords={
+                userLocation.latitude && userLocation.longitude
+                  ? { latitude: userLocation.latitude, longitude: userLocation.longitude }
+                  : null
+              }
             />
 
             <p className="text-xs text-neutral-500 text-center font-medium">
