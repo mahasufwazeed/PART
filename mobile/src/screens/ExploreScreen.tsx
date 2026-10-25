@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export const ExploreScreen: React.FC = () => {
-  const { userLocation, language, openTaskDetails } = useAppStore();
+  const { userLocation, activeLocation, language, openTaskDetails } = useAppStore();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [mapEngine, setMapEngine] = useState<'maplibre' | 'leaflet'>('maplibre');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
@@ -37,65 +37,101 @@ export const ExploreScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
+  // Request counter to avoid stale response race conditions
+  const fetchRequestId = React.useRef(0);
+
+  const currentCoords = activeLocation?.coordinates || {
+    latitude: userLocation.latitude,
+    longitude: userLocation.longitude,
+  };
+  const currentLocalityName = (
+    activeLocation?.label || userLocation.locality
+  ).split(',')[0].trim();
+
   const fetchTasks = async () => {
+    const requestId = ++fetchRequestId.current;
     setIsLoading(true);
 
-    // Call PostGIS / Haversine locationService
-    const results = await locationService.getNearbyTasks(
-      userLocation.latitude,
-      userLocation.longitude,
-      selectedRadiusKm
-    );
-
-    let filtered = [...results];
-
-    // Filter by category
-    if (selectedCategory) {
-      filtered = filtered.filter((t) => t.category_id === selectedCategory);
-    }
-
-    // Filter by text search
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.location?.locality.toLowerCase().includes(q)
+    try {
+      // Call PostGIS / Haversine locationService
+      const results = await locationService.getNearbyTasks(
+        currentCoords.latitude,
+        currentCoords.longitude,
+        selectedRadiusKm
       );
-    }
 
-    // Quick Tasks filter (< 60 min)
-    if (activeFilter === 'quick_tasks') {
-      filtered = filtered.filter((t) => t.estimated_duration_minutes <= 60);
-    }
+      if (requestId !== fetchRequestId.current) return;
 
-    // Today filter
-    if (activeFilter === 'today') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      filtered = filtered.filter((t) => t.preferred_date === todayStr);
-    }
+      let filtered = [...results];
 
-    // Sorting
-    if (activeFilter === 'nearby') {
-      filtered.sort((a, b) => (a.distance_km || 0) - (b.distance_km || 0));
-    } else if (activeFilter === 'highest_pay') {
-      filtered.sort((a, b) => b.budget_inr - a.budget_inr);
-    } else if (activeFilter === 'newest') {
-      filtered.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    }
+      // Filter by category
+      if (selectedCategory) {
+        filtered = filtered.filter((t) => t.category_id === selectedCategory);
+      }
 
-    setTasks(filtered);
-    setIsLoading(false);
+      // Filter by text search
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(
+          (t) =>
+            t.title.toLowerCase().includes(q) ||
+            t.description.toLowerCase().includes(q) ||
+            t.location?.locality.toLowerCase().includes(q)
+        );
+      }
+
+      // Quick Tasks filter (< 60 min)
+      if (activeFilter === 'quick_tasks') {
+        filtered = filtered.filter((t) => (t.estimated_duration_minutes || 0) <= 60);
+      }
+
+      // Today filter using local Chennai IST timezone (Asia/Kolkata)
+      if (activeFilter === 'today') {
+        const todayStr = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Kolkata',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(new Date());
+        filtered = filtered.filter((t) => t.preferred_date === todayStr);
+      }
+
+      // Sorting
+      if (activeFilter === 'nearby') {
+        filtered.sort((a, b) => (a.distance_km || 0) - (b.distance_km || 0));
+      } else if (activeFilter === 'highest_pay') {
+        filtered.sort((a, b) => b.budget_inr - a.budget_inr);
+      } else if (activeFilter === 'newest') {
+        filtered.sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+
+      setTasks(filtered);
+    } finally {
+      if (requestId === fetchRequestId.current) {
+        setIsLoading(false);
+      }
+    }
   };
 
   useEffect(() => {
     fetchTasks();
-  }, [userLocation, selectedCategory, selectedRadiusKm, activeFilter, searchQuery]);
-
-  const currentLocalityName = userLocation.locality.split(',')[0].trim();
+    const unsubscribe = taskService.subscribeToTasks(() => {
+      fetchTasks();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [
+    activeLocation,
+    userLocation.latitude,
+    userLocation.longitude,
+    selectedCategory,
+    selectedRadiusKm,
+    activeFilter,
+    searchQuery,
+  ]);
 
   return (
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
@@ -281,8 +317,8 @@ export const ExploreScreen: React.FC = () => {
             {mapEngine === 'maplibre' ? (
               <MapLibreView
                 tasks={tasks}
-                centerLat={userLocation.latitude}
-                centerLng={userLocation.longitude}
+                centerLat={currentCoords.latitude}
+                centerLng={currentCoords.longitude}
                 radiusKm={selectedRadiusKm}
                 onRadiusChange={(km) => setSelectedRadiusKm(km)}
                 onTaskSelect={(task) => openTaskDetails(task.id)}
@@ -290,8 +326,8 @@ export const ExploreScreen: React.FC = () => {
             ) : (
               <RealtimeMap
                 tasks={tasks}
-                centerLat={userLocation.latitude}
-                centerLng={userLocation.longitude}
+                centerLat={currentCoords.latitude}
+                centerLng={currentCoords.longitude}
                 initialRadiusKm={selectedRadiusKm}
                 onRadiusChange={(km) => setSelectedRadiusKm(km)}
               />
@@ -307,15 +343,26 @@ export const ExploreScreen: React.FC = () => {
               <SkeletonLoader count={4} />
             ) : tasks.length === 0 ? (
               <EmptyState
-                title="No tasks found matching filters"
-                subtitle={`No tasks found within ${selectedRadiusKm} km of ${currentLocalityName}. Try expanding your radius or changing categories.`}
-                actionText="Expand to 20 km"
+                title="No nearby tasks found"
+                subtitle="Try increasing your search radius or selecting another location."
+                actionText="Increase Radius"
                 onAction={() => {
-                  setSelectedRadiusKm(20);
-                  setSelectedCategory(undefined);
-                  setActiveFilter('nearby');
-                  setSearchQuery('');
+                  const nextKm =
+                    selectedRadiusKm < 25
+                      ? DISTANCE_FILTER_OPTIONS_KM.find((km) => km > selectedRadiusKm) || 25
+                      : 25;
+                  setSelectedRadiusKm(nextKm);
                 }}
+                secondaryActions={[
+                  {
+                    label: 'Change Location',
+                    onClick: () => setShowLocationPicker(true),
+                  },
+                  {
+                    label: 'Refresh Tasks',
+                    onClick: () => fetchTasks(),
+                  },
+                ]}
               />
             ) : (
               tasks.map((task) => <TaskCard key={task.id} task={task} />)

@@ -43,5 +43,6 @@ export function isWithinRadius(
   return dist <= maxDistanceKm;
 }
 
-export const DISTANCE_FILTER_OPTIONS_KM = [1, 3, 5, 10, 20] as const;
+export const DISTANCE_FILTER_OPTIONS_KM = [1, 3, 5, 10, 15, 25] as const;
 export type DistanceFilterOption = (typeof DISTANCE_FILTER_OPTIONS_KM)[number];
+export const DEFAULT_SEARCH_RADIUS_KM: DistanceFilterOption = 5;

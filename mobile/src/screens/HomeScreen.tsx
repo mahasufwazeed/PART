@@ -22,8 +22,15 @@ import {
 } from 'lucide-react';
 
 export const HomeScreen: React.FC = () => {
-  const { setTab, userLocation, language, currentProfile, openTaskDetails, selectedCollegeName } =
-    useAppStore();
+  const {
+    setTab,
+    userLocation,
+    activeLocation,
+    language,
+    currentProfile,
+    openTaskDetails,
+    selectedCollegeName,
+  } = useAppStore();
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeTasks, setActiveTasks] = useState<Task[]>([]);
@@ -32,12 +39,20 @@ export const HomeScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showHomeMap, setShowHomeMap] = useState(false);
 
+  const currentCoords = activeLocation?.coordinates || {
+    latitude: userLocation.latitude,
+    longitude: userLocation.longitude,
+  };
+  const currentLocality = (
+    activeLocation?.label || userLocation.locality
+  ).split(',')[0].trim();
+
   const fetchTasks = async () => {
     setIsLoading(true);
     const nearby = await taskService.getNearbyTasks({
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-      radiusKm: 20,
+      latitude: currentCoords.latitude,
+      longitude: currentCoords.longitude,
+      radiusKm: 15,
       categoryId: selectedCategory,
       searchQuery,
     });
@@ -62,7 +77,20 @@ export const HomeScreen: React.FC = () => {
 
   useEffect(() => {
     fetchTasks();
-  }, [userLocation, selectedCategory, searchQuery, currentProfile?.id]);
+    const unsubscribe = taskService.subscribeToTasks(() => {
+      fetchTasks();
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [
+    activeLocation,
+    userLocation.latitude,
+    userLocation.longitude,
+    selectedCategory,
+    searchQuery,
+    currentProfile?.id,
+  ]);
 
   return (
     <div className="pb-28 min-h-screen bg-[#F7F8FA] select-none">
@@ -163,8 +191,8 @@ export const HomeScreen: React.FC = () => {
               </h3>
               <p className="text-[11px] font-medium text-neutral-500">
                 {language === 'ta'
-                  ? `${userLocation.locality.split(',')[0]} சுற்றளவில் கிடைக்கும் வாய்ப்புகள்`
-                  : `Opportunities around ${userLocation.locality.split(',')[0]}`}
+                  ? `${currentLocality} சுற்றளவில் கிடைக்கும் வாய்ப்புகள்`
+                  : `Opportunities around ${currentLocality}`}
               </p>
             </div>
 
@@ -196,7 +224,12 @@ export const HomeScreen: React.FC = () => {
           {/* Interactive Realtime Map on Home Screen */}
           {showHomeMap && (
             <div className="animate-slide-up">
-              <RealtimeMap tasks={tasks} />
+              <RealtimeMap
+                tasks={tasks}
+                centerLat={currentCoords.latitude}
+                centerLng={currentCoords.longitude}
+                initialRadiusKm={15}
+              />
             </div>
           )}
 

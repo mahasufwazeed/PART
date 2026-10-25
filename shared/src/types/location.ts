@@ -1,16 +1,47 @@
-export type AddressLabel = 'Home' | 'Work' | 'Other';
+export type AddressLabel =
+  | 'Home'
+  | 'Office'
+  | 'Work'
+  | 'College'
+  | 'University'
+  | 'Other';
+
+export type Coordinates = {
+  latitude: number;
+  longitude: number;
+};
+
+export type LocationSource =
+  | 'gps'
+  | 'search'
+  | 'profile'
+  | 'saved_address'
+  | 'map_pin';
+
+export type ActiveLocation = {
+  coordinates: Coordinates;
+  label: string;
+  source: LocationSource;
+  updatedAt: number;
+  accuracyMeters?: number | null;
+  isFallback?: boolean;
+};
 
 export interface SavedAddress {
   id: string;
+  userId?: string;
   user_id?: string;
-  label: AddressLabel;
+  label: AddressLabel | string;
   title: string;
   address_line: string;
+  formattedAddress?: string;
   locality: string;
   latitude: number;
   longitude: number;
+  isDefault?: boolean;
   is_default?: boolean;
   created_at?: string;
+  isDemo?: boolean;
 }
 
 export interface WorkerLiveLocation {

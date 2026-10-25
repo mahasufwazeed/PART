@@ -1,0 +1,73 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-and-build:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Typecheck
+        run: npm run typecheck
+
+      - name: Run Unit & Integration Tests
+        run: npm run test
+
+      - name: Build Application (Mobile Client)
+        run: npm run build
+
+      - name: Build Admin Dashboard
+        run: npm --workspace=admin run build
+
+      - name: Verify Build Artifacts
+        run: |
+          test -f mobile/dist/index.html || { echo "mobile/dist/index.html missing"; exit 1; }
+          echo "All build artifacts verified successfully!"
+
+  deploy-vercel:
+    name: Deploy to Vercel
+    needs: test-and-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "Deploying to Vercel via Vercel CLI..."
+            npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+            npx vercel build --prod --token=$VERCEL_TOKEN
+            npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+          else
+            echo "::notice title=Vercel Deployment::VERCEL_TOKEN secret is not set in GitHub repository secrets. If your repository is connected directly via Vercel GitHub integration (vercel.com), Vercel automatically deploys every push to main. To enable direct CLI deployment in this workflow, add VERCEL_TOKEN, VERCEL_ORG_ID, and VERCEL_PROJECT_ID to your GitHub repo secrets."
+          fi

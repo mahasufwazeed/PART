@@ -145,7 +145,7 @@ export const PostTaskScreen: React.FC = () => {
       return;
     }
 
-    const { task, error } = await taskService.createTask(parsed.data, currentProfile.id);
+    const { task, error } = await taskService.createTask(currentProfile.id, parsed.data);
     setIsSubmitting(false);
 
     if (error) {
@@ -601,14 +601,12 @@ export const PostTaskScreen: React.FC = () => {
       {/* Full Blinkit-style Location Selector Modal */}
       <LocationSelectorModal
         isOpen={showLocationModal}
-        onClose={() => {
-          setShowLocationModal(false);
-          if (userLocation) {
-            setLocality(userLocation.locality.split(',')[0].trim());
-            setApproximateAddress(userLocation.locality);
-            setTaskLat(userLocation.latitude);
-            setTaskLng(userLocation.longitude);
-          }
+        onClose={() => setShowLocationModal(false)}
+        onSelectLocation={(loc) => {
+          setLocality(loc.locality.split(',')[0].trim());
+          setApproximateAddress(loc.locality);
+          setTaskLat(loc.latitude);
+          setTaskLng(loc.longitude);
         }}
       />
     </div>

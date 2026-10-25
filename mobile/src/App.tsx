@@ -116,7 +116,10 @@ export const App: React.FC = () => {
         const user = sessionData?.session?.user;
 
         if (user && isMounted) {
-          const profile = await authService.getProfile(user.id);
+          let profile = await authService.getProfile(user.id);
+          if (!profile && user.email) {
+            profile = await authService.getProfileByEmail(user.email);
+          }
           if (profile && isMounted) {
             setCurrentProfile(profile);
           }
@@ -137,7 +140,10 @@ export const App: React.FC = () => {
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           if (session?.user) {
-            const profile = await authService.getProfile(session.user.id);
+            let profile = await authService.getProfile(session.user.id);
+            if (!profile && session.user.email) {
+              profile = await authService.getProfileByEmail(session.user.email);
+            }
             if (profile && isMounted) {
               setCurrentProfile(profile);
             }

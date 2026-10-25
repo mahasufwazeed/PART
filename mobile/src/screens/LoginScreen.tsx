@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import {
   authService,
-  firebaseAuthService,
   loginSchema,
   registerSchema,
 } from '@part/shared';
@@ -78,6 +77,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     return clean;
   };
 
+  // 1-Click Demo Login for instant zero-config testing
+  const handleDemoLogin = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const res = await authService.login('demo@part.app', 'demo1234', true);
+      if (res.session?.profile) {
+        setCurrentProfile(res.session.profile);
+        if (onSuccess) onSuccess();
+      } else if (res.error) {
+        setErrorMessage(res.error);
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Demo login failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle Login Submit
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,28 +116,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
 
     try {
-      // 1. Try Firebase Authentication if configured
-      if (firebaseAuthService.isConfigured()) {
-        const fbRes = await firebaseAuthService.loginWithEmail(cleanEmail, password);
-        if (fbRes.error) {
-          setErrorMessage(fbRes.error);
-          setIsLoading(false);
-          return;
-        }
-        if (fbRes.profile) {
-          setCurrentProfile(fbRes.profile);
-          if (!fbRes.profile.college_id) {
-            setShowOnboardingModal(true);
-          } else if (!fbRes.profile.general_location) {
-            setShowLocationModal(true);
-          } else if (onSuccess) {
-            onSuccess();
-          }
-          return;
-        }
-      }
-
-      // 2. Local / Supabase auth fallback
       const res = await authService.login(cleanEmail, password, rememberMe);
       if (res.error) {
         setErrorMessage(res.error);
@@ -176,22 +172,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsLoading(true);
 
     try {
-      // 1. Try Firebase Authentication if configured
-      if (firebaseAuthService.isConfigured()) {
-        const fbRes = await firebaseAuthService.registerWithEmail(cleanEmail, password, fullName);
-        if (fbRes.error) {
-          setErrorMessage(fbRes.error);
-          setIsLoading(false);
-          return;
-        }
-        if (fbRes.profile) {
-          setCurrentProfile(fbRes.profile);
-          setShowOnboardingModal(true);
-          return;
-        }
-      }
-
-      // 2. Local fallback registration
       const res = await authService.register(cleanEmail, password, fullName);
       if (res.error) {
         setErrorMessage(res.error);
@@ -211,42 +191,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     }
   };
 
-
   // Google Sign-In
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     setErrorMessage(null);
 
     try {
-      // Try Firebase Google Sign In first if configured
-      if (firebaseAuthService.isConfigured()) {
-        const fbRes = await firebaseAuthService.signInWithGoogle();
-        if (fbRes.error) {
-          setErrorMessage(fbRes.error);
-          setIsGoogleLoading(false);
-          return;
-        }
-        if (fbRes.profile) {
-          setCurrentProfile(fbRes.profile);
-          if (!fbRes.profile.college_id) {
-            setShowOnboardingModal(true);
-          } else if (onSuccess) {
-            onSuccess();
-          }
-          return;
-        }
-      }
-
-      // Supabase / Demo Google Auth
       const res = await authService.signInWithGoogle();
       if (res.error) {
         setErrorMessage(res.error);
+        setIsGoogleLoading(false);
+      } else if (res.session?.profile) {
+        setCurrentProfile(res.session.profile);
+        setIsGoogleLoading(false);
+        if (onSuccess) onSuccess();
+      } else if (res.redirectInitiated) {
+        // Full page redirect in progress, keep loading state
       } else {
+        setIsGoogleLoading(false);
         if (onSuccess) onSuccess();
       }
     } catch (err: any) {
       setErrorMessage(err.message || 'Google sign-in failed.');
-    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -488,7 +454,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
             {/* Social Auth Buttons */}
             <div className="space-y-2.5 mb-4">
-              {/* Google Button (Firebase Auth integration) */}
+              {/* Google Button */}
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
@@ -610,6 +576,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
+                </button>
+
+                {/* 1-Click Demo Campus Login */}
+                <button
+                  type="button"
+                  onClick={handleDemoLogin}
+                  disabled={isLoading}
+                  className="w-full py-3 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#146B3A] border border-emerald-200 font-heading font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Zap className="w-4 h-4 text-emerald-600" />
+                  <span>⚡ 1-Click Demo Campus Login</span>
                 </button>
               </form>
             ) : (

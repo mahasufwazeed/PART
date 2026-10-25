@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { CHENNAI_COLLEGES, College, firebaseAuthService } from '@part/shared';
+import { CHENNAI_COLLEGES, College, authService } from '@part/shared';
 import {
   GraduationCap,
   User,
@@ -83,7 +83,7 @@ export const UniversityOnboardingModal: React.FC<Props> = ({
     setErrorMessage(null);
 
     try {
-      const res = await firebaseAuthService.updateStudentOnboarding(currentProfile.id, {
+      const res = await authService.updateStudentOnboarding(currentProfile.id, {
         userType,
         collegeId: selectedCollege?.id,
         collegeName: selectedCollege?.name,

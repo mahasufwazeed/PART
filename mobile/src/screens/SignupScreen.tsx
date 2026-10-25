@@ -121,10 +121,19 @@ export const SignupScreen: React.FC<SignupScreenProps> = ({
       const res = await authService.signInWithGoogle();
       if (res.error) {
         setGeneralError(res.error);
+        setIsGoogleLoading(false);
+      } else if (res.session?.profile) {
+        setCurrentProfile(res.session.profile);
+        setIsGoogleLoading(false);
+        if (onSuccess) onSuccess();
+      } else if (res.redirectInitiated) {
+        // Full page redirect in progress, keep loading state
+      } else {
+        setIsGoogleLoading(false);
+        if (onSuccess) onSuccess();
       }
     } catch (err: any) {
       setGeneralError(err.message || 'Google signup failed.');
-    } finally {
       setIsGoogleLoading(false);
     }
   };

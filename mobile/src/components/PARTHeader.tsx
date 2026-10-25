@@ -13,6 +13,7 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
   const {
     currentProfile,
     userLocation,
+    activeLocation,
     setUserLocation,
     language,
     setLanguage,
@@ -23,7 +24,9 @@ export const PARTHeader: React.FC<PARTHeaderProps> = () => {
 
   const [showLocationModal, setShowLocationModal] = useState(false);
 
-  const currentLocalityName = userLocation.locality.split(',')[0].trim();
+  const currentLocalityName = (
+    activeLocation?.label || userLocation.locality
+  ).split(',')[0].trim();
 
   return (
     <>

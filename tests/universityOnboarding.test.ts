@@ -1,54 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  firebaseAuthService,
-  isFirebaseConfigured,
-  getMissingFirebaseKeys,
+  authService,
   mockStore,
   Profile,
 } from '../shared/src';
 
-describe('PART — Firebase Auth & University Onboarding Integration Tests', () => {
+describe('PART — University Student Onboarding Flow & Security Tests', () => {
   beforeEach(() => {
     mockStore.reset();
   });
 
-  describe('1. Firebase Environment & Configuration Detection', () => {
-    it('accurately identifies missing Firebase configuration keys when env vars are unset', () => {
-      const isConfigured = isFirebaseConfigured();
-      // In current testing environment without .env injected, isConfigured should be false
-      expect(typeof isConfigured).toBe('boolean');
-
-      const missingKeys = getMissingFirebaseKeys();
-      expect(Array.isArray(missingKeys)).toBe(true);
-      if (!isConfigured) {
-        expect(missingKeys).toContain('VITE_FIREBASE_API_KEY');
-        expect(missingKeys).toContain('VITE_FIREBASE_PROJECT_ID');
-        expect(missingKeys).toContain('VITE_FIREBASE_APP_ID');
-      }
-    });
-
-    it('gracefully reports clear requirement guidance if live Firebase operations are attempted without credentials', async () => {
-      if (!firebaseAuthService.isConfigured()) {
-        const googleRes = await firebaseAuthService.signInWithGoogle();
-        expect(googleRes.error).toBeDefined();
-        expect(googleRes.error).toContain('Firebase');
-
-        const loginRes = await firebaseAuthService.loginWithEmail('test@part.app', 'pass1234');
-        expect(loginRes.error).toBeDefined();
-        expect(loginRes.error).toContain('Firebase');
-
-        const signupRes = await firebaseAuthService.registerWithEmail(
-          'new@part.app',
-          'pass1234',
-          'New Student'
-        );
-        expect(signupRes.error).toBeDefined();
-        expect(signupRes.error).toContain('Firebase');
-      }
-    });
-  });
-
-  describe('2. University Student Onboarding Flow & Security', () => {
+  describe('1. Student Onboarding Processing', () => {
     it('successfully processes student onboarding and stores university details', async () => {
       // Seed a registered profile
       const testUser: Profile = {
@@ -71,7 +33,7 @@ describe('PART — Firebase Auth & University Onboarding Integration Tests', () 
       };
       mockStore.profiles.set(testUser.id, testUser);
 
-      const onboardingRes = await firebaseAuthService.updateStudentOnboarding(testUser.id, {
+      const onboardingRes = await authService.updateStudentOnboarding(testUser.id, {
         userType: 'student',
         collegeId: 'vels-university',
         collegeName: 'VELS Institute of Science, Technology & Advanced Studies',
@@ -89,7 +51,7 @@ describe('PART — Firebase Auth & University Onboarding Integration Tests', () 
       expect(onboardingRes.profile?.verification_status).toBe('pending');
     });
 
-    it('enforces that a student verification status remains PENDING and cannot be self-approved', async () => {
+    it('enforces that student verification status remains PENDING and cannot be self-approved', async () => {
       const studentUser: Profile = {
         id: 'usr-student-tamizh',
         full_name: 'Tamizh Inian',
@@ -110,7 +72,7 @@ describe('PART — Firebase Auth & University Onboarding Integration Tests', () 
       };
       mockStore.profiles.set(studentUser.id, studentUser);
 
-      const res = await firebaseAuthService.updateStudentOnboarding(studentUser.id, {
+      const res = await authService.updateStudentOnboarding(studentUser.id, {
         userType: 'student',
         collegeId: 'anna-university',
         collegeName: 'Anna University (CEG Guindy)',
@@ -125,7 +87,7 @@ describe('PART — Firebase Auth & University Onboarding Integration Tests', () 
 
     it('clears session on logout', async () => {
       mockStore.currentUserId = 'some-user-id';
-      await firebaseAuthService.logout();
+      await authService.logout();
       expect(mockStore.currentUserId).toBeNull();
     });
   });

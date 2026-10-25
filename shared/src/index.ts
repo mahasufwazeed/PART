@@ -21,7 +21,3 @@ export * from './supabase/disputeService';
 export * from './supabase/notificationService';
 export * from './supabase/locationService';
 export * from './services/geoapifyService';
-
-// Firebase Authentication & Firestore
-export * from './firebase/firebaseClient';
-export * from './firebase/firebaseAuthService';

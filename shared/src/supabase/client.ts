@@ -60,3 +60,36 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseAnonKe
   },
 });
 
+/**
+ * Dynamically resolves the current origin without hardcoding localhost in production
+ */
+export const getAppCanonicalOrigin = (): string => {
+  // 1. Browser window origin (active host & port e.g. https://part-marketplace.onrender.com or http://localhost:3000)
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+
+  // 2. Environment variables for production hosting platforms (Render, Vercel, custom)
+  const envUrl =
+    getEnv('VITE_APP_URL') ||
+    getEnv('APP_URL') ||
+    getEnv('NEXT_PUBLIC_APP_URL') ||
+    getEnv('RENDER_EXTERNAL_URL');
+
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '');
+  }
+
+  // 3. Fallback for test / server environments
+  return 'http://localhost:3000';
+};
+
+/**
+ * Builds the canonical Google OAuth callback URL
+ */
+export const getGoogleCallbackUrl = (customRedirect?: string): string => {
+  if (customRedirect) return customRedirect;
+  return `${getAppCanonicalOrigin()}/auth/callback`;
+};
+
+

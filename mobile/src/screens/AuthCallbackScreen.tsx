@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase, authService, Profile } from '@part/shared';
+import { supabase, authService, Profile, mapAuthErrorMessage } from '@part/shared';
 import { useAppStore } from '../store/useAppStore';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 
@@ -23,16 +23,55 @@ export const AuthCallbackScreen: React.FC<AuthCallbackScreenProps> = ({
       try {
         if (typeof window !== 'undefined') {
           const url = new URL(window.location.href);
+
+          // Helper to extract parameters from search query or hash fragment
+          const getParam = (key: string): string | null => {
+            const fromSearch = url.searchParams.get(key);
+            if (fromSearch) return fromSearch;
+            if (url.hash) {
+              const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
+              return hashParams.get(key);
+            }
+            return null;
+          };
+
+          // 1. Detect OAuth errors passed back in URL (e.g. access_denied, redirect_uri_mismatch)
+          const oauthError = getParam('error') || getParam('error_code');
+          const oauthErrorDesc = getParam('error_description');
+
+          if (oauthError) {
+            const friendly = mapAuthErrorMessage(oauthErrorDesc || oauthError);
+
+            // If running inside an OAuth popup, notify opener window
+            if (window.opener && window.opener !== window) {
+              try {
+                window.opener.postMessage(
+                  { type: 'PART_AUTH_ERROR', error: friendly },
+                  window.location.origin
+                );
+                window.close();
+                return;
+              } catch {}
+            }
+
+            if (isSubscribed) {
+              setErrorMessage(friendly);
+              setStatus('error');
+            }
+            return;
+          }
+
+          // 2. Exchange authorization code for session (PKCE flow)
           const code = url.searchParams.get('code');
           if (code) {
             const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
             if (exchangeError) {
-              console.warn('PKCE exchange:', exchangeError.message);
+              console.warn('PKCE exchange warning:', exchangeError.message);
             }
           }
         }
 
-        // Exchange session or read current session from URL hash / storage
+        // 3. Read current session from storage or token hash
         const { data: sessionData, error: sessionError } =
           await supabase.auth.getSession();
 
@@ -42,7 +81,7 @@ export const AuthCallbackScreen: React.FC<AuthCallbackScreenProps> = ({
 
         const user = sessionData?.session?.user;
         if (!user) {
-          // If no immediate session, check if onAuthStateChange fires
+          // If no immediate session, subscribe to auth state changes
           const { data: authListener } = supabase.auth.onAuthStateChange(
             async (event, session) => {
               if (session?.user && isSubscribed) {
@@ -54,30 +93,58 @@ export const AuthCallbackScreen: React.FC<AuthCallbackScreenProps> = ({
           // Timeout fallback
           setTimeout(() => {
             if (status === 'verifying' && isSubscribed) {
-              setErrorMessage('Authentication session timed out. Please try logging in again.');
+              const timeoutMsg = 'Authentication session timed out. Please try logging in again.';
+              if (typeof window !== 'undefined' && window.opener && window.opener !== window) {
+                try {
+                  window.opener.postMessage(
+                    { type: 'PART_AUTH_ERROR', error: timeoutMsg },
+                    window.location.origin
+                  );
+                  window.close();
+                  return;
+                } catch {}
+              }
+              setErrorMessage(timeoutMsg);
               setStatus('error');
             }
           }, 6000);
 
           return () => {
-            authListener.subscription.unsubscribe();
+            authListener?.subscription?.unsubscribe();
           };
         }
 
         await processUser(user);
       } catch (err: any) {
         if (isSubscribed) {
-          setErrorMessage(err.message || 'Authentication failed during callback.');
+          const friendly = mapAuthErrorMessage(err.message || 'Authentication failed during callback.');
+          if (typeof window !== 'undefined' && window.opener && window.opener !== window) {
+            try {
+              window.opener.postMessage(
+                { type: 'PART_AUTH_ERROR', error: friendly },
+                window.location.origin
+              );
+              window.close();
+              return;
+            } catch {}
+          }
+          setErrorMessage(friendly);
           setStatus('error');
         }
       }
     };
 
     const processUser = async (user: any) => {
+      // 1. Check if profile exists by ID
       let profile = await authService.getProfile(user.id);
 
+      // 2. Link existing account if email matches (preserves previous reviews, history, role)
+      if (!profile && user.email) {
+        profile = await authService.getProfileByEmail(user.email);
+      }
+
+      // 3. Create fresh profile only if none exists
       if (!profile) {
-        // Auto-create profile from Google OAuth metadata
         const googleMeta = user.user_metadata || {};
         profile = {
           id: user.id,
@@ -112,6 +179,24 @@ export const AuthCallbackScreen: React.FC<AuthCallbackScreenProps> = ({
           .upsert(profile)
           .select()
           .maybeSingle();
+      }
+
+      // If running inside a popup window, inform opener and close cleanly
+      if (typeof window !== 'undefined' && window.opener && window.opener !== window) {
+        try {
+          window.opener.postMessage(
+            {
+              type: 'PART_AUTH_SUCCESS',
+              user: { id: user.id, email: user.email },
+              profile,
+            },
+            window.location.origin
+          );
+          window.close();
+          return;
+        } catch (e) {
+          console.warn('Could not postMessage to opener:', e);
+        }
       }
 
       if (isSubscribed) {

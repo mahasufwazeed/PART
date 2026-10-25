@@ -1,4 +1,9 @@
-import { supabase, isLiveSupabaseConfigured } from './client';
+import {
+  supabase,
+  isLiveSupabaseConfigured,
+  getGoogleCallbackUrl,
+  getAppCanonicalOrigin,
+} from './client';
 import { mockStore } from './mockStore';
 import { Profile, AppLanguage } from '../types';
 import { OnboardingProfileInput } from '../schemas';
@@ -10,6 +15,55 @@ export interface AuthSession {
   };
   profile: Profile;
 }
+
+export interface GoogleSignInOptions {
+  redirectTo?: string;
+  usePopup?: boolean;
+  email?: string;
+  fullName?: string;
+  skipBrowserRedirect?: boolean;
+}
+
+/**
+ * Maps raw auth error codes or messages to clear, actionable user messages
+ */
+export const mapAuthErrorMessage = (rawMessage?: string): string => {
+  if (!rawMessage) return 'An unexpected authentication error occurred.';
+  const msg = rawMessage.toLowerCase();
+
+  if (msg.includes('popup') && (msg.includes('block') || msg.includes('window.open'))) {
+    return 'Sign-in popup was blocked by your browser. Please allow popups or use redirect login.';
+  }
+  if (
+    msg.includes('cancel') ||
+    msg.includes('access_denied') ||
+    msg.includes('closed') ||
+    msg.includes('popup-closed')
+  ) {
+    return 'Google sign-in was cancelled.';
+  }
+  if (msg.includes('redirect_uri_mismatch') || msg.includes('redirect uri')) {
+    return 'OAuth redirect URL mismatch. Please verify Authorized Redirect URIs in Google Cloud Console and Supabase Dashboard.';
+  }
+  if (
+    msg.includes('unauthorized') ||
+    msg.includes('not allowed') ||
+    msg.includes('unauthorized_client')
+  ) {
+    return 'Authentication request not authorized. Please verify your domain in Supabase Dashboard (Auth > URL Configuration).';
+  }
+  if (msg.includes('invalid_client') || msg.includes('client id')) {
+    return 'Google OAuth Client ID is invalid or missing in Supabase provider settings.';
+  }
+  if (
+    msg.includes('connection_refused') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('network')
+  ) {
+    return 'Unable to connect to authentication server. Please check your network connection.';
+  }
+  return rawMessage;
+};
 
 export const authService = {
   /**
@@ -290,23 +344,122 @@ export const authService = {
   },
 
   /**
-   * Google OAuth 2.0 Sign In
+   * Google OAuth 2.0 Sign In with Popup & Redirect support
    */
   async signInWithGoogle(
-    redirectTo?: string
-  ): Promise<{ error?: string }> {
-    const callbackUrl =
-      redirectTo ||
-      (typeof window !== 'undefined'
-        ? `${window.location.origin}/auth/callback`
-        : 'http://localhost:3000/auth/callback');
+    optionsOrRedirect?: string | GoogleSignInOptions
+  ): Promise<{
+    error?: string;
+    session?: AuthSession;
+    cancelled?: boolean;
+    popupBlocked?: boolean;
+    redirectInitiated?: boolean;
+    url?: string;
+  }> {
+    const options: GoogleSignInOptions =
+      typeof optionsOrRedirect === 'string'
+        ? { redirectTo: optionsOrRedirect }
+        : optionsOrRedirect || {};
+
+    const callbackUrl = getGoogleCallbackUrl(options.redirectTo);
 
     if (isLiveSupabaseConfigured) {
       try {
+        const preferPopup = options.usePopup !== false && typeof window !== 'undefined';
+
+        if (preferPopup) {
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              redirectTo: callbackUrl,
+              skipBrowserRedirect: true,
+              queryParams: {
+                access_type: 'offline',
+                prompt: 'consent',
+              },
+            },
+          });
+
+          if (error) {
+            return { error: mapAuthErrorMessage(error.message) };
+          }
+
+          if (data?.url) {
+            const width = 500;
+            const height = 650;
+            const left = window.screenX + (window.outerWidth - width) / 2;
+            const top = window.screenY + (window.outerHeight - height) / 2;
+            const popup = window.open(
+              data.url,
+              'PART_GOOGLE_OAUTH_POPUP',
+              `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+            );
+
+            if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+              console.warn('Google sign-in popup blocked by browser. Falling back to full-page redirect.');
+              window.location.assign(data.url);
+              return { popupBlocked: true, redirectInitiated: true, url: data.url };
+            }
+
+            return new Promise((resolve) => {
+              let pollTimer: any = null;
+
+              const cleanup = () => {
+                if (pollTimer) clearInterval(pollTimer);
+                window.removeEventListener('message', messageHandler);
+              };
+
+              const messageHandler = async (event: MessageEvent) => {
+                if (event.origin !== window.location.origin) return;
+
+                if (event.data?.type === 'PART_AUTH_SUCCESS') {
+                  cleanup();
+                  try {
+                    const { data: sessionData } = await supabase.auth.getSession();
+                    const user = sessionData?.session?.user || event.data.user;
+                    let profile = event.data.profile;
+                    if (!profile && user?.id) {
+                      profile = await authService.getProfile(user.id);
+                    }
+                    if (!profile && user?.email) {
+                      profile = await authService.getProfileByEmail(user.email);
+                    }
+                    resolve({
+                      session: {
+                        user: { id: user?.id || profile?.id, email: user?.email || profile?.email },
+                        profile: profile!,
+                      },
+                    });
+                  } catch (err: any) {
+                    resolve({ error: mapAuthErrorMessage(err.message) });
+                  }
+                } else if (event.data?.type === 'PART_AUTH_ERROR') {
+                  cleanup();
+                  resolve({ error: mapAuthErrorMessage(event.data.error) });
+                }
+              };
+
+              window.addEventListener('message', messageHandler);
+
+              pollTimer = setInterval(() => {
+                if (popup.closed) {
+                  cleanup();
+                  resolve({
+                    error: 'Google sign-in was cancelled.',
+                    cancelled: true,
+                  });
+                }
+              }, 500);
+            });
+          }
+        }
+
+        // Full page redirect mode
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: callbackUrl,
+            skipBrowserRedirect: false,
             queryParams: {
               access_type: 'offline',
               prompt: 'consent',
@@ -315,42 +468,52 @@ export const authService = {
         });
 
         if (error) {
-          return { error: error.message };
+          return { error: mapAuthErrorMessage(error.message) };
         }
-        return {};
+        return { redirectInitiated: true };
       } catch (err: any) {
-        return { error: err.message || 'Failed to initiate Google OAuth.' };
+        return { error: mapAuthErrorMessage(err.message || 'Failed to initiate Google OAuth.') };
       }
     }
 
-    // Demo/offline local simulation
-    const mockGoogleId = `google-usr-${Date.now()}`;
-    const mockGoogleProfile: Profile = {
-      id: mockGoogleId,
-      full_name: 'Verified Google User',
-      email: 'user@gmail.com',
-      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
-      bio: 'Neighborhood helper signed in via Google.',
-      default_role: 'poster',
-      preferred_language: 'en',
-      city: 'Chennai',
-      general_location: 'Velachery, Chennai',
-      is_admin: false,
-      verification_status: 'verified',
-      is_worker_available: true,
-      rating_as_worker: 5.0,
-      total_reviews_as_worker: 0,
-      completed_tasks_as_worker: 0,
-      rating_as_requester: 5.0,
-      total_reviews_as_requester: 0,
-      completed_tasks_as_requester: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    // Demo/offline local simulation: preserve existing account if email matches
+    const targetEmail = (options.email || 'user@gmail.com').toLowerCase().trim();
+    let foundProfile = await this.getProfileByEmail(targetEmail);
 
-    mockStore.profiles.set(mockGoogleId, mockGoogleProfile);
-    mockStore.currentUserId = mockGoogleId;
-    return {};
+    if (!foundProfile) {
+      const mockGoogleId = `google-usr-${Date.now()}`;
+      foundProfile = {
+        id: mockGoogleId,
+        full_name: options.fullName || 'Verified Google User',
+        email: targetEmail,
+        avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80',
+        bio: 'Neighborhood helper signed in via Google.',
+        default_role: 'poster',
+        preferred_language: 'en',
+        city: 'Chennai',
+        general_location: 'Velachery, Chennai',
+        is_admin: false,
+        verification_status: 'verified',
+        is_worker_available: true,
+        rating_as_worker: 5.0,
+        total_reviews_as_worker: 0,
+        completed_tasks_as_worker: 0,
+        rating_as_requester: 5.0,
+        total_reviews_as_requester: 0,
+        completed_tasks_as_requester: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      mockStore.profiles.set(mockGoogleId, foundProfile);
+    }
+
+    mockStore.currentUserId = foundProfile.id;
+    return {
+      session: {
+        user: { id: foundProfile.id, email: targetEmail },
+        profile: foundProfile,
+      },
+    };
   },
 
   /**
@@ -361,11 +524,7 @@ export const authService = {
     redirectTo?: string
   ): Promise<{ success: boolean; error?: string }> {
     const cleanEmail = email.toLowerCase().trim();
-    const callbackUrl =
-      redirectTo ||
-      (typeof window !== 'undefined'
-        ? `${window.location.origin}/update-password`
-        : 'http://localhost:3000/update-password');
+    const callbackUrl = redirectTo || `${getAppCanonicalOrigin()}/update-password`;
 
     if (isLiveSupabaseConfigured) {
       try {
@@ -373,10 +532,10 @@ export const authService = {
           redirectTo: callbackUrl,
         });
 
-        if (error) return { success: false, error: error.message };
+        if (error) return { success: false, error: mapAuthErrorMessage(error.message) };
         return { success: true };
       } catch (err: any) {
-        return { success: false, error: err.message || 'Could not send recovery email.' };
+        return { success: false, error: mapAuthErrorMessage(err.message || 'Could not send recovery email.') };
       }
     }
 
@@ -538,6 +697,35 @@ export const authService = {
   },
 
   /**
+   * Fetch user profile by email address (used to link Google sign-in to existing accounts)
+   */
+  async getProfileByEmail(email: string): Promise<Profile | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail) return null;
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .ilike('email', cleanEmail)
+          .maybeSingle();
+
+        if (!error && data) return data as Profile;
+      } catch (err) {
+        console.warn('Error fetching profile by email from Supabase:', err);
+      }
+    }
+
+    for (const [_, profile] of mockStore.profiles.entries()) {
+      if (profile.email && profile.email.toLowerCase().trim() === cleanEmail) {
+        return profile;
+      }
+    }
+    return null;
+  },
+
+  /**
    * Complete onboarding
    */
   async completeOnboarding(
@@ -597,6 +785,63 @@ export const authService = {
       return mockStore.profiles.get(mockStore.currentUserId) || null;
     }
     return null;
+  },
+
+  /**
+   * Update Student University Onboarding details
+   */
+  async updateStudentOnboarding(
+    userId: string,
+    data: {
+      userType: 'student' | 'individual' | 'organization';
+      collegeId?: string;
+      collegeName?: string;
+      department?: string;
+      yearOfStudy?: string;
+      skills?: string[];
+      bio?: string;
+      profilePicture?: string;
+    }
+  ): Promise<{ profile?: Profile; error?: string }> {
+    const existing = mockStore.profiles.get(userId);
+    if (!existing) {
+      return { error: 'User profile not found.' };
+    }
+
+    const updatedProfile: Profile = {
+      ...existing,
+      college_id: data.collegeId || existing.college_id,
+      department: data.department || (existing as any).department,
+      skills: data.skills || existing.skills || [],
+      bio: data.bio || existing.bio,
+      avatar_url: data.profilePicture || existing.avatar_url,
+      verification_status: 'pending', // Verification status stays pending until reviewed
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isLiveSupabaseConfigured) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            user_type: data.userType,
+            college_id: data.collegeId || null,
+            college_name: data.collegeName || null,
+            department: data.department || null,
+            year_of_study: data.yearOfStudy || null,
+            skills: data.skills || [],
+            bio: data.bio || null,
+            verification_status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', userId);
+      } catch (err: any) {
+        console.warn('Supabase profile update warning:', err);
+      }
+    }
+
+    mockStore.profiles.set(userId, updatedProfile);
+    return { profile: updatedProfile };
   },
 
   /**

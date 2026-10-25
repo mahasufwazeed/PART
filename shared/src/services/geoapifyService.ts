@@ -107,26 +107,41 @@ export const geoapifyService = {
       console.warn('Geoapify autocomplete fallback:', err);
       // Fallback matching against standard Chennai localities
       const CHENNAI_PRESETS = [
-        { name: 'Velachery', lat: 12.9815, lon: 80.218 },
-        { name: 'Adyar', lat: 13.0012, lon: 80.2565 },
-        { name: 'Anna Nagar', lat: 13.085, lon: 80.2101 },
-        { name: 'T. Nagar', lat: 13.0418, lon: 80.2341 },
-        { name: 'Thiruvanmiyur', lat: 12.983, lon: 80.2594 },
-        { name: 'Besant Nagar', lat: 13.0002, lon: 80.2667 },
-        { name: 'Mylapore', lat: 13.0368, lon: 80.2676 },
-        { name: 'Nungambakkam', lat: 13.0569, lon: 80.2425 },
-        { name: 'Guindy', lat: 13.0067, lon: 80.2025 },
-        { name: 'Tambaram', lat: 12.9249, lon: 80.1481 },
-        { name: 'Porur', lat: 13.0382, lon: 80.1565 },
-        { name: 'Alwarpet', lat: 13.0336, lon: 80.2526 },
-        { name: 'OMR - Sholinganallur', lat: 12.901, lon: 80.2279 },
+        { name: 'Velachery', formatted: 'Velachery, Chennai, Tamil Nadu', lat: 12.9815, lon: 80.218 },
+        { name: 'Pallavaram', formatted: 'Pallavaram, Chennai, Tamil Nadu', lat: 12.9675, lon: 80.1491 },
+        { name: 'VELS University Pallavaram', formatted: 'VELS University, Pallavaram, Chennai, Tamil Nadu', lat: 12.9567, lon: 80.1601 },
+        { name: 'Anna Nagar', formatted: 'Anna Nagar, Chennai, Tamil Nadu', lat: 13.085, lon: 80.2101 },
+        { name: 'T. Nagar', formatted: 'T. Nagar, Chennai, Tamil Nadu', lat: 13.0418, lon: 80.2341 },
+        { name: 'Adyar', formatted: 'Adyar, Chennai, Tamil Nadu', lat: 13.0012, lon: 80.2565 },
+        { name: 'Thiruvanmiyur', formatted: 'Thiruvanmiyur, Chennai, Tamil Nadu', lat: 12.983, lon: 80.2594 },
+        { name: 'Besant Nagar', formatted: 'Besant Nagar, Chennai, Tamil Nadu', lat: 13.0002, lon: 80.2667 },
+        { name: 'Mylapore', formatted: 'Mylapore, Chennai, Tamil Nadu', lat: 13.0368, lon: 80.2676 },
+        { name: 'Nungambakkam', formatted: 'Nungambakkam, Chennai, Tamil Nadu', lat: 13.0569, lon: 80.2425 },
+        { name: 'Guindy', formatted: 'Guindy, Chennai, Tamil Nadu', lat: 13.0067, lon: 80.2025 },
+        { name: 'IIT Madras', formatted: 'IIT Madras, Sardar Patel Road, Chennai, Tamil Nadu', lat: 12.9915, lon: 80.2337 },
+        { name: 'Anna University', formatted: 'Anna University, Guindy, Chennai, Tamil Nadu', lat: 13.0131, lon: 80.2353 },
+        { name: 'SRM University', formatted: 'SRM Institute of Science and Technology, Chennai, Tamil Nadu', lat: 12.823, lon: 80.0444 },
+        { name: 'Tambaram', formatted: 'Tambaram, Chennai, Tamil Nadu', lat: 12.9249, lon: 80.1481 },
+        { name: 'Chromepet', formatted: 'Chromepet, Chennai, Tamil Nadu', lat: 12.9516, lon: 80.1462 },
+        { name: 'Perungudi', formatted: 'Perungudi, OMR, Chennai, Tamil Nadu', lat: 12.965, lon: 80.235 },
+        { name: 'Porur', formatted: 'Porur, Chennai, Tamil Nadu', lat: 13.0382, lon: 80.1565 },
+        { name: 'Alwarpet', formatted: 'Alwarpet, Chennai, Tamil Nadu', lat: 13.0336, lon: 80.2526 },
+        { name: 'OMR - Sholinganallur', formatted: 'Sholinganallur, OMR, Chennai, Tamil Nadu', lat: 12.901, lon: 80.2279 },
+        { name: 'Phoenix MarketCity', formatted: 'Phoenix MarketCity, Velachery Road, Chennai, Tamil Nadu', lat: 12.9925, lon: 80.2173 },
+        { name: 'Marina Beach', formatted: 'Marina Beach, Kamarajar Salai, Chennai, Tamil Nadu', lat: 13.05, lon: 80.2824 },
+        { name: 'Koyambedu CMBT', formatted: 'Koyambedu Bus Terminal, Chennai, Tamil Nadu', lat: 13.0694, lon: 80.1948 },
+        { name: 'Ascendas Tech Park', formatted: 'Ascendas IT Park, CSIR Road, Taramani, Chennai', lat: 12.9863, lon: 80.2432 },
       ];
 
-      return CHENNAI_PRESETS.filter((p) =>
-        p.name.toLowerCase().includes(trimmed)
-      ).map((p) => ({
-        place_id: `fallback_${p.name}`,
-        formatted: `${p.name}, Chennai, Tamil Nadu`,
+      const queryWords = trimmed.split(/[\s,]+/).filter((w) => w && w !== 'chennai' && w !== 'tamil' && w !== 'nadu');
+
+      return CHENNAI_PRESETS.filter((p) => {
+        const text = `${p.name} ${p.formatted}`.toLowerCase();
+        if (text.includes(trimmed)) return true;
+        return queryWords.length > 0 && queryWords.every((word) => text.includes(word));
+      }).map((p) => ({
+        place_id: `fallback_${p.name.replace(/\s+/g, '_').toLowerCase()}`,
+        formatted: p.formatted,
         address_line1: p.name,
         address_line2: 'Chennai, Tamil Nadu',
         city: 'Chennai',

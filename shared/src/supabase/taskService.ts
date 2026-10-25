@@ -19,62 +19,100 @@ import {
 import { disputeService } from './disputeService';
 import { notificationService } from './notificationService';
 
+export type TaskChangeEvent = {
+  eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+  new: Task;
+  old?: Task;
+};
+
+const isTestEnv =
+  typeof process !== 'undefined' &&
+  (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true');
+
+const taskListeners = new Set<(event: TaskChangeEvent) => void>();
+
 export const taskService = {
   /**
    * Create a new task with geospatial location
+   * Supports both (requesterId, input) and (input, requesterId)
    */
   async createTask(
-    requesterId: string,
-    input: CreateTaskInput
+    arg1: string | CreateTaskInput,
+    arg2?: CreateTaskInput | string
   ): Promise<{ task: Task; error?: string }> {
-    if (isLiveSupabaseConfigured) {
-      const { data: taskData, error: taskError } = await supabase
-        .from('tasks')
-        .insert({
-          requester_id: requesterId,
-          category_id: input.category_id,
-          title: input.title,
-          description: input.description,
-          budget_inr: input.budget_inr,
-          estimated_duration_minutes: input.estimated_duration_minutes,
-          preferred_date: input.preferred_date,
-          preferred_time_window: input.preferred_time_window,
-          required_workers_count: input.required_workers_count,
-          assigned_workers_count: 0,
-          required_skills: input.required_skills,
-          special_instructions: input.special_instructions,
-          status: 'OPEN',
-        })
-        .select()
-        .single();
+    let requesterId: string;
+    let input: CreateTaskInput;
 
-      if (taskError) {
-        if (!taskError.message.includes('Could not find the table') && taskError.code !== 'PGRST204') {
-          return { task: null as any, error: taskError.message };
+    if (typeof arg1 === 'string') {
+      requesterId = arg1;
+      input = arg2 as CreateTaskInput;
+    } else {
+      input = arg1 as CreateTaskInput;
+      requesterId = typeof arg2 === 'string' ? arg2 : 'guest_requester';
+    }
+
+    if (!input) {
+      return { task: null as any, error: 'Task input data is required' };
+    }
+
+    if (isLiveSupabaseConfigured && !isTestEnv) {
+      try {
+        const { data: taskData, error: taskError } = await supabase
+          .from('tasks')
+          .insert({
+            requester_id: requesterId,
+            category_id: input.category_id,
+            title: input.title,
+            description: input.description,
+            budget_inr: input.budget_inr,
+            estimated_duration_minutes: input.estimated_duration_minutes,
+            preferred_date: input.preferred_date,
+            preferred_time_window: input.preferred_time_window,
+            required_workers_count: input.required_workers_count ?? 1,
+            assigned_workers_count: 0,
+            required_skills: input.required_skills ?? [],
+            special_instructions: input.special_instructions,
+            status: 'OPEN',
+          })
+          .select()
+          .single();
+
+        if (taskError) {
+          if (!taskError.message.includes('Could not find the table') && taskError.code !== 'PGRST204') {
+            return { task: null as any, error: taskError.message };
+          }
+          // Fall back to local store if tables are not yet migrated on remote Supabase
+        } else {
+          const { error: locError } = await supabase.from('task_locations').insert({
+            task_id: taskData.id,
+            city: input.city || 'Chennai',
+            locality: input.locality,
+            address_approximate: input.address_approximate,
+            address_exact: input.address_exact,
+            latitude: input.latitude,
+            longitude: input.longitude,
+            postal_code: input.postal_code,
+          });
+
+          if (locError && !locError.message.includes('Could not find the table')) {
+            return { task: null as any, error: locError.message };
+          }
+
+          taskListeners.forEach((cb) => {
+            try {
+              cb({ eventType: 'INSERT', new: taskData as Task });
+            } catch {}
+          });
+
+          return { task: taskData as Task };
         }
-        // Fall back to local store if tables are not yet migrated on remote Supabase
-      } else {
-        const { error: locError } = await supabase.from('task_locations').insert({
-          task_id: taskData.id,
-          city: input.city,
-          locality: input.locality,
-          address_approximate: input.address_approximate,
-          address_exact: input.address_exact,
-          latitude: input.latitude,
-          longitude: input.longitude,
-          postal_code: input.postal_code,
-        });
-
-        if (locError && !locError.message.includes('Could not find the table')) {
-          return { task: null as any, error: locError.message };
-        }
-
-        return { task: taskData as Task };
+      } catch (err: any) {
+        // Fall back to local Sandbox Store execution
       }
     }
 
     // Local Sandbox Store execution
-    const taskId = `task-${Date.now()}`;
+    const taskId = `task-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const newTask: Task = {
       id: taskId,
       requester_id: requesterId,
@@ -85,9 +123,9 @@ export const taskService = {
       estimated_duration_minutes: input.estimated_duration_minutes,
       preferred_date: input.preferred_date,
       preferred_time_window: input.preferred_time_window,
-      required_workers_count: input.required_workers_count,
+      required_workers_count: input.required_workers_count ?? 1,
       assigned_workers_count: 0,
-      required_skills: input.required_skills,
+      required_skills: input.required_skills ?? [],
       special_instructions: input.special_instructions,
       status: 'OPEN',
       created_at: new Date().toISOString(),
@@ -95,9 +133,9 @@ export const taskService = {
     };
 
     const newLoc: TaskLocation = {
-      id: `loc-${Date.now()}`,
+      id: `loc-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       task_id: taskId,
-      city: input.city,
+      city: input.city || 'Chennai',
       locality: input.locality,
       address_approximate: input.address_approximate,
       address_exact: input.address_exact,
@@ -110,7 +148,19 @@ export const taskService = {
     mockStore.tasks.set(taskId, newTask);
     mockStore.locations.set(taskId, newLoc);
 
-    return { task: newTask };
+    const fullTask: Task = {
+      ...newTask,
+      location: { ...newLoc, address_exact: null },
+      category: TASK_CATEGORIES.find((c) => c.id === input.category_id) as any,
+    };
+
+    taskListeners.forEach((cb) => {
+      try {
+        cb({ eventType: 'INSERT', new: fullTask });
+      } catch {}
+    });
+
+    return { task: fullTask };
   },
 
   /**
@@ -135,7 +185,7 @@ export const taskService = {
       searchQuery = '',
     } = params;
 
-    if (isLiveSupabaseConfigured) {
+    if (isLiveSupabaseConfigured && !isTestEnv) {
       const { data, error } = await supabase.rpc('get_nearby_tasks', {
         p_user_lat: latitude,
         p_user_lng: longitude,
@@ -623,5 +673,41 @@ export const taskService = {
     return list.sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+  },
+
+  /**
+   * Subscribe to real-time task updates (Supabase Realtime + in-memory store)
+   */
+  subscribeToTasks(callback: (event: TaskChangeEvent) => void): () => void {
+    taskListeners.add(callback);
+
+    let supabaseChannel: any = null;
+    if (isLiveSupabaseConfigured) {
+      try {
+        supabaseChannel = supabase
+          .channel('public:tasks')
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'tasks' },
+            (payload) => {
+              callback({
+                eventType: payload.eventType as any,
+                new: payload.new as Task,
+                old: payload.old as Task,
+              });
+            }
+          )
+          .subscribe();
+      } catch {
+        // non-fatal
+      }
+    }
+
+    return () => {
+      taskListeners.delete(callback);
+      if (supabaseChannel) {
+        supabase.removeChannel(supabaseChannel);
+      }
+    };
   },
 };
