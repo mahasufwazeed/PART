@@ -30,6 +30,7 @@ const isTestEnv =
   (process.env.NODE_ENV === 'test' || process.env.VITEST === 'true');
 
 const taskListeners = new Set<(event: TaskChangeEvent) => void>();
+let lastTaskQueryError: string | null = null;
 
 export const taskService = {
   /**
@@ -196,6 +197,7 @@ export const taskService = {
       });
 
       if (!error && data) {
+        lastTaskQueryError = null;
         return data.map((row: any) => ({
           id: row.task_id,
           requester_id: row.requester_id,
@@ -231,6 +233,48 @@ export const taskService = {
             rating_as_requester: row.requester_rating,
           } as any,
         }));
+      }
+
+      if (error) {
+        lastTaskQueryError = `Database RPC get_nearby_tasks: ${error.message}`;
+        try {
+          const { data: tableData, error: tableError } = await supabase
+            .from('tasks')
+            .select(`
+              id, requester_id, category_id, title, description, budget_inr,
+              estimated_duration_minutes, preferred_date, preferred_time_window,
+              required_workers_count, assigned_workers_count, status, created_at,
+              task_locations ( locality, address_approximate, latitude, longitude )
+            `)
+            .eq('status', 'OPEN');
+
+          if (!tableError && tableData && tableData.length > 0) {
+            const tableResults: Task[] = [];
+            for (const row of tableData) {
+              const loc = Array.isArray(row.task_locations) ? row.task_locations[0] : row.task_locations;
+              if (!loc?.latitude || !loc?.longitude) continue;
+              const dist = calculateHaversineDistanceKm(latitude, longitude, loc.latitude, loc.longitude);
+              if (dist > radiusKm) continue;
+              if (categoryId && row.category_id !== categoryId) continue;
+              if (row.budget_inr < minBudget || row.budget_inr > maxBudget) continue;
+
+              tableResults.push({
+                ...row,
+                updated_at: row.created_at || new Date().toISOString(),
+                distance_km: dist,
+                location: loc as any,
+                category: TASK_CATEGORIES.find((c) => c.id === row.category_id) as any,
+                required_skills: [],
+              });
+            }
+            if (tableResults.length > 0) {
+              lastTaskQueryError = null;
+              return tableResults;
+            }
+          }
+        } catch {
+          // non-fatal
+        }
       }
     }
 
@@ -709,5 +753,19 @@ export const taskService = {
         supabase.removeChannel(supabaseChannel);
       }
     };
+  },
+
+  /**
+   * Get any recent database error encountered during task discovery queries
+   */
+  getLastQueryError(): string | null {
+    return lastTaskQueryError;
+  },
+
+  /**
+   * Clear the recorded database error
+   */
+  clearLastQueryError(): void {
+    lastTaskQueryError = null;
   },
 };

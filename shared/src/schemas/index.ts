@@ -23,7 +23,7 @@ export const signupSchema = registerSchema
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string().min(8, 'Please confirm your password'),
     termsAccepted: z.literal(true, {
-      errorMap: () => ({ message: 'You must accept the Terms and Privacy Policy' }),
+      message: 'You must accept the Terms and Privacy Policy',
     }),
   })
   .refine((data) => data.password === data.confirmPassword, {

@@ -6,9 +6,10 @@ import {
   SavedAddress,
   GeocodeSuggestion,
   CHENNAI_LOCALITIES,
+  CHENNAI_COLLEGES,
   LocationSource,
 } from '@part/shared';
-import { MapLibreView } from './MapLibreView';
+import { LeafletMapView } from './LeafletMapView';
 import {
   MapPin,
   Search,
@@ -566,9 +567,9 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
                 </button>
               </div>
 
-              {/* Mini MapLibre GL Pin Picker */}
+              {/* Mini Leaflet OpenStreetMap Pin Picker */}
               <div className="h-[220px] rounded-2xl overflow-hidden shadow-inner border border-neutral-200">
-                <MapLibreView
+                <LeafletMapView
                   centerLat={pickerCoords.lat}
                   centerLng={pickerCoords.lng}
                   zoom={15}
@@ -835,6 +836,112 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
             </div>
           )}
 
+          {/* Profile Locality (if set on account) */}
+          {!isMapPickerOpen && !isAddingAddress && currentProfile?.general_location && (
+            <div className="pt-2 border-t border-neutral-100">
+              <span className="text-[11px] font-heading font-bold text-neutral-400 uppercase tracking-wider block mb-1.5">
+                Profile Locality
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const locName = currentProfile.general_location!;
+                  const matched = CHENNAI_LOCALITIES.find((l) =>
+                    locName.toLowerCase().includes(l.name.toLowerCase())
+                  );
+                  const lat = matched?.latitude || 12.9815;
+                  const lng = matched?.longitude || 80.218;
+                  const label = `${locName}, Chennai`;
+                  setActiveLocation({
+                    coordinates: { latitude: lat, longitude: lng },
+                    label,
+                    source: 'profile',
+                  });
+                  onSelectLocation?.({
+                    locality: label,
+                    latitude: lat,
+                    longitude: lng,
+                    source: 'profile',
+                  });
+                  onClose();
+                }}
+                className={`w-full p-2.5 rounded-2xl border text-left flex items-center justify-between gap-2 transition cursor-pointer ${
+                  activeLocation.source === 'profile'
+                    ? 'border-part-green bg-emerald-50/50'
+                    : 'border-neutral-200/80 bg-neutral-50/50 hover:bg-neutral-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-100 text-part-green flex items-center justify-center">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-neutral-900 block">
+                      {currentProfile.general_location}
+                    </span>
+                    <span className="text-[10px] text-neutral-500">
+                      Your registered profile location
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-part-green bg-part-green-mint px-2 py-0.5 rounded-md uppercase">
+                  Profile
+                </span>
+              </button>
+            </div>
+          )}
+
+          {/* Chennai Colleges & Universities (Campus Community) */}
+          {!isMapPickerOpen && !isAddingAddress && (
+            <div className="space-y-2 pt-2 border-t border-neutral-100">
+              <span className="text-[11px] font-heading font-bold text-neutral-400 uppercase tracking-wider block">
+                Colleges & Universities (Chennai Campuses)
+              </span>
+
+              <div className="flex flex-wrap gap-1.5">
+                {CHENNAI_COLLEGES.slice(0, 6).map((college) => {
+                  const isCurrent =
+                    activeLocation.source === 'college' &&
+                    activeLocation.label.includes(college.short_name);
+                  return (
+                    <button
+                      key={college.id}
+                      type="button"
+                      onClick={() => {
+                        const matched = CHENNAI_LOCALITIES.find(
+                          (l) => l.name.toLowerCase() === college.locality.toLowerCase()
+                        );
+                        const lat = matched?.latitude || 12.9675;
+                        const lng = matched?.longitude || 80.1491;
+                        const label = `${college.short_name}, ${college.locality}, Chennai`;
+                        setActiveLocation({
+                          coordinates: { latitude: lat, longitude: lng },
+                          label,
+                          source: 'college',
+                        });
+                        onSelectLocation?.({
+                          locality: label,
+                          latitude: lat,
+                          longitude: lng,
+                          source: 'college',
+                        });
+                        onClose();
+                      }}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1 transition cursor-pointer ${
+                        isCurrent
+                          ? 'bg-purple-700 text-white shadow-xs'
+                          : 'bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/60'
+                      }`}
+                    >
+                      <span>{college.emoji}</span>
+                      <span>{college.short_name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Popular Chennai Neighborhood Quick Chips */}
           {!isMapPickerOpen && !isAddingAddress && (
             <div className="space-y-2 pt-2 border-t border-neutral-100">
@@ -844,7 +951,9 @@ export const LocationSelectorModal: React.FC<LocationSelectorModalProps> = ({
 
               <div className="flex flex-wrap gap-1.5">
                 {CHENNAI_LOCALITIES.map((loc) => {
-                  const isCurrent = activeLocation.label.toLowerCase().includes(loc.name.toLowerCase());
+                  const isCurrent =
+                    activeLocation.source !== 'college' &&
+                    activeLocation.label.toLowerCase().includes(loc.name.toLowerCase());
                   return (
                     <button
                       key={loc.name}

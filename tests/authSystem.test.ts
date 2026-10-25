@@ -39,7 +39,8 @@ describe('PART – Complete Authentication System Tests', () => {
       });
       expect(mismatch.success).toBe(false);
       if (!mismatch.success) {
-        expect(mismatch.error.errors[0].message).toBe('Passwords do not match');
+        const issues = mismatch.error.issues || (mismatch.error as any).errors || [];
+        expect(issues[0]?.message).toBe('Passwords do not match');
       }
     });
 

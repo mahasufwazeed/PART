@@ -7,7 +7,7 @@ import {
   RouteInfo,
   TaskStatus,
 } from '@part/shared';
-import { MapLibreView } from './MapLibreView';
+import { LeafletMapView } from './LeafletMapView';
 import {
   Navigation,
   Compass,
@@ -322,9 +322,9 @@ export const LiveTrackingSheet: React.FC<LiveTrackingSheetProps> = ({
         </div>
       )}
 
-      {/* Interactive MapLibre GL Navigation Map */}
+      {/* Interactive Leaflet + OpenStreetMap Navigation Map */}
       <div className="h-[250px] rounded-2xl overflow-hidden border border-neutral-200/90 shadow-inner">
-        <MapLibreView
+        <LeafletMapView
           centerLat={workerLocation ? workerLocation.latitude : taskLocation.latitude}
           centerLng={workerLocation ? workerLocation.longitude : taskLocation.longitude}
           zoom={14}

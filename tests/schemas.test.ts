@@ -48,7 +48,8 @@ describe('Zod Validation Schemas', () => {
     const result = createTaskSchema.safeParse(invalidTask);
     expect(result.success).toBe(false);
     if (!result.success) {
-      const errorPaths = result.error.errors.map((e) => e.path.join('.'));
+      const issues = result.error.issues || (result.error as any).errors || [];
+      const errorPaths = issues.map((e: any) => e.path.join('.'));
       expect(errorPaths).toContain('budget_inr');
       expect(errorPaths).toContain('estimated_duration_minutes');
       expect(errorPaths).toContain('description');

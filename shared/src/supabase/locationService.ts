@@ -494,5 +494,19 @@ export const locationService = {
       radiusKm,
     });
   },
+
+  /**
+   * Get any recent database error encountered during task discovery queries
+   */
+  getLastQueryError(): string | null {
+    return taskService.getLastQueryError();
+  },
+
+  /**
+   * Clear recorded database query error
+   */
+  clearLastQueryError(): void {
+    taskService.clearLastQueryError();
+  },
 };
 

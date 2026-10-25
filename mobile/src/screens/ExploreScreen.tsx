@@ -8,8 +8,7 @@ import {
   DISTANCE_FILTER_OPTIONS_KM,
 } from '@part/shared';
 import { TaskCard } from '../components/TaskCard';
-import { RealtimeMap } from '../components/RealtimeMap';
-import { MapLibreView } from '../components/MapLibreView';
+import { LeafletMapView } from '../components/LeafletMapView';
 import { LocationSelectorModal } from '../components/LocationSelectorModal';
 import { SearchBar } from '../components/SearchBar';
 import { SkeletonLoader } from '../components/SkeletonLoader';
@@ -21,12 +20,12 @@ import {
   ChevronDown,
   Layers,
   Compass,
+  AlertCircle,
 } from 'lucide-react';
 
 export const ExploreScreen: React.FC = () => {
   const { userLocation, activeLocation, language, openTaskDetails } = useAppStore();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [mapEngine, setMapEngine] = useState<'maplibre' | 'leaflet'>('maplibre');
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>();
   const [selectedRadiusKm, setSelectedRadiusKm] = useState<number>(5);
   const [activeFilter, setActiveFilter] = useState<
@@ -35,6 +34,7 @@ export const ExploreScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   // Request counter to avoid stale response race conditions
@@ -59,6 +59,11 @@ export const ExploreScreen: React.FC = () => {
         currentCoords.longitude,
         selectedRadiusKm
       );
+
+      const dbErr = locationService.getLastQueryError();
+      if (requestId === fetchRequestId.current) {
+        setFetchError(dbErr);
+      }
 
       if (requestId !== fetchRequestId.current) return;
 
@@ -278,63 +283,55 @@ export const ExploreScreen: React.FC = () => {
         </div>
       </div>
 
+      {/* Database Error Banner (if error occurred but fallback tasks loaded) */}
+      {fetchError && tasks.length > 0 && (
+        <div className="mx-3 sm:mx-5 md:px-6 pt-2">
+          <div className="bg-amber-50 border border-amber-200/90 text-amber-800 px-3 py-2 rounded-2xl text-xs flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span className="truncate">{fetchError}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                locationService.clearLastQueryError();
+                setFetchError(null);
+              }}
+              className="text-[10px] font-bold underline shrink-0 ml-2 hover:text-amber-950 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content: List View or Map View */}
       <div className="px-3 sm:px-5 md:px-6 pt-3">
         {viewMode === 'map' ? (
           <div className="space-y-3">
-            {/* Engine Switcher */}
+            {/* Map Header / Counter */}
             <div className="flex items-center justify-between text-xs px-1">
               <span className="font-heading font-bold text-neutral-600">
                 Found {tasks.length} tasks within {selectedRadiusKm}km
               </span>
-              <div className="flex items-center gap-1 bg-white p-0.5 rounded-xl border border-neutral-200 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setMapEngine('maplibre')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-heading font-black transition ${
-                    mapEngine === 'maplibre'
-                      ? 'bg-part-green text-white shadow-xs'
-                      : 'text-neutral-500 hover:text-neutral-900'
-                  }`}
-                >
-                  MapLibre GL
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapEngine('leaflet')}
-                  className={`px-2 py-0.5 rounded-lg text-[10px] font-heading font-black transition ${
-                    mapEngine === 'leaflet'
-                      ? 'bg-part-green text-white shadow-xs'
-                      : 'text-neutral-500 hover:text-neutral-900'
-                  }`}
-                >
-                  Geoapify Tile
-                </button>
+              <div className="flex items-center gap-1.5 text-xs text-part-green font-bold bg-white px-2.5 py-1 rounded-xl border border-neutral-200/80 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-part-green animate-pulse" />
+                <span>Leaflet + OpenStreetMap</span>
               </div>
             </div>
 
-            {/* Selected Map Engine */}
-            {mapEngine === 'maplibre' ? (
-              <MapLibreView
-                tasks={tasks}
-                centerLat={currentCoords.latitude}
-                centerLng={currentCoords.longitude}
-                radiusKm={selectedRadiusKm}
-                onRadiusChange={(km) => setSelectedRadiusKm(km)}
-                onTaskSelect={(task) => openTaskDetails(task.id)}
-              />
-            ) : (
-              <RealtimeMap
-                tasks={tasks}
-                centerLat={currentCoords.latitude}
-                centerLng={currentCoords.longitude}
-                initialRadiusKm={selectedRadiusKm}
-                onRadiusChange={(km) => setSelectedRadiusKm(km)}
-              />
-            )}
+            {/* Leaflet + OpenStreetMap Map */}
+            <LeafletMapView
+              tasks={tasks}
+              centerLat={currentCoords.latitude}
+              centerLng={currentCoords.longitude}
+              radiusKm={selectedRadiusKm}
+              onRadiusChange={(km) => setSelectedRadiusKm(km)}
+              onTaskSelect={(task) => openTaskDetails(task.id)}
+            />
 
             <p className="text-xs text-neutral-500 text-center font-medium">
-              Interactive PostGIS radius map showing verified tasks in Chennai with live price tags.
+              Interactive Leaflet.js & OpenStreetMap radius map showing verified tasks in Chennai with live price tags.
             </p>
           </div>
         ) : (
@@ -343,15 +340,23 @@ export const ExploreScreen: React.FC = () => {
               <SkeletonLoader count={4} />
             ) : tasks.length === 0 ? (
               <EmptyState
-                title="No nearby tasks found"
-                subtitle="Try increasing your search radius or selecting another location."
-                actionText="Increase Radius"
+                title={fetchError ? 'Database Connection Error' : 'No nearby tasks found'}
+                subtitle={
+                  fetchError
+                    ? `Could not reach task database: ${fetchError}. Please verify database status or retry.`
+                    : 'Try increasing your search radius or selecting another location.'
+                }
+                actionText={fetchError ? 'Retry Connection' : 'Increase Radius'}
                 onAction={() => {
-                  const nextKm =
-                    selectedRadiusKm < 25
-                      ? DISTANCE_FILTER_OPTIONS_KM.find((km) => km > selectedRadiusKm) || 25
-                      : 25;
-                  setSelectedRadiusKm(nextKm);
+                  if (fetchError) {
+                    fetchTasks();
+                  } else {
+                    const nextKm =
+                      selectedRadiusKm < 25
+                        ? DISTANCE_FILTER_OPTIONS_KM.find((km) => km > selectedRadiusKm) || 25
+                        : 25;
+                    setSelectedRadiusKm(nextKm);
+                  }
                 }}
                 secondaryActions={[
                   {

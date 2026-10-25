@@ -16,6 +16,8 @@ export type LocationSource =
   | 'search'
   | 'profile'
   | 'saved_address'
+  | 'college'
+  | 'university'
   | 'map_pin';
 
 export type ActiveLocation = {
