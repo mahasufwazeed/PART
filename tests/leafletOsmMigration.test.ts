@@ -270,5 +270,36 @@ describe('PART – Leaflet.js + OpenStreetMap Migration Test Suite', () => {
       expect(bounds[1][0]).toBeGreaterThan(bounds[0][0]);
       expect(bounds[1][1]).toBeGreaterThan(bounds[0][1]);
     });
+
+    it('verifies standard radius filter options [1, 3, 5, 10, 15, 25] km', () => {
+      expect(DISTANCE_FILTER_OPTIONS_KM).toEqual([1, 3, 5, 10, 15, 25]);
+    });
+
+    it('validates PartLeafletMap module and NearbyTasks component implementations', async () => {
+      const fs = await import('fs');
+      const path = await import('path');
+
+      const mapFilePath = path.resolve(__dirname, '../mobile/src/components/map/PartLeafletMap.tsx');
+      expect(fs.existsSync(mapFilePath)).toBe(true);
+      const mapContent = fs.readFileSync(mapFilePath, 'utf-8');
+      expect(mapContent).toContain('export default function PartLeafletMap');
+      expect(mapContent).toContain('MapContainer');
+      expect(mapContent).toContain('TileLayer');
+      expect(mapContent).toContain('Circle');
+      expect(mapContent).toContain('useMap');
+      expect(mapContent).toContain('UpdateMapCenter');
+
+      const nearbyTasksPath = path.resolve(__dirname, '../mobile/src/components/NearbyTasks.tsx');
+      expect(fs.existsSync(nearbyTasksPath)).toBe(true);
+      const nearbyContent = fs.readFileSync(nearbyTasksPath, 'utf-8');
+      expect(nearbyContent).toContain('export default function NearbyTasks');
+      expect(nearbyContent).toContain('DISTANCE_FILTER_OPTIONS_KM');
+      expect(nearbyContent).toContain('PartLeafletMap');
+      expect(nearbyContent).toContain('useAppStore');
+
+      const reexportPath = path.resolve(__dirname, '../mobile/src/components/PartLeafletMap.tsx');
+      expect(fs.existsSync(reexportPath)).toBe(true);
+    });
   });
 });
+
